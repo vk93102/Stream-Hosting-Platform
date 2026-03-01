@@ -8,7 +8,6 @@
  *  PATCH /api/admin/users/:username    Enable/disable, change plan
  *  POST /api/admin/streams/:key/kill   Force-kill a stream
  *  GET  /api/admin/relays              Relay node status
- *  GET  /api/admin/vms                 All active VMs
  */
 const router     = require('express').Router();
 const db         = require('../db/database');
@@ -21,17 +20,15 @@ router.use(requireAdmin);
 // ── Stats dashboard ───────────────────────────────────────────────────────────
 router.get('/stats', async (req, res) => {
   try {
-    const [live, total, vms, sessions] = await Promise.all([
+    const [live, total, sessions] = await Promise.all([
       db.query("SELECT COUNT(*) c FROM users WHERE is_live=true"),
       db.query("SELECT COUNT(*) c FROM users"),
-      db.query("SELECT COUNT(*) c FROM vm_instances WHERE status='running'"),
       db.query("SELECT COUNT(*) c FROM stream_sessions WHERE started_at > NOW() - INTERVAL '24h'"),
     ]);
 
     res.json({
       live_streams:       parseInt(live.rows[0].c),
       total_users:        parseInt(total.rows[0].c),
-      active_vms:         parseInt(vms.rows[0].c),
       sessions_24h:       parseInt(sessions.rows[0].c),
       ffmpeg_sessions:    restreamer.activeCount,
       ffmpeg_detail:      restreamer.getAllStats(),
@@ -64,7 +61,7 @@ router.get('/users', async (req, res) => {
   const limit = Math.min(100, parseInt(req.query.limit) || 50);
   try {
     const { rows } = await db.query(
-      `SELECT username, email, plan, is_active, is_live, vm_enabled, created_at, total_stream_hours
+      `SELECT username, email, plan, is_active, is_live, created_at, total_stream_hours
          FROM users ORDER BY created_at DESC
         LIMIT $1 OFFSET $2`,
       [limit, (page - 1) * limit]
@@ -77,7 +74,7 @@ router.get('/users', async (req, res) => {
 
 // ── Update user ───────────────────────────────────────────────────────────────
 router.patch('/users/:username', async (req, res) => {
-  const allowed = ['is_active', 'plan', 'vm_enabled'];
+  const allowed = ['is_active', 'plan'];
   const updates = [];
   const vals    = [];
   let   idx     = 1;
@@ -120,18 +117,6 @@ router.post('/streams/:key/kill', async (req, res) => {
 // ── Relay nodes ───────────────────────────────────────────────────────────────
 router.get('/relays', async (req, res) => {
   const { rows } = await db.query('SELECT * FROM relay_nodes ORDER BY region');
-  res.json(rows);
-});
-
-// ── Active VMs ────────────────────────────────────────────────────────────────
-router.get('/vms', async (req, res) => {
-  const { rows } = await db.query(
-    `SELECT vm.*, u.username
-       FROM vm_instances vm
-       JOIN users u ON vm.user_id = u.id
-      WHERE vm.status != 'terminated'
-      ORDER BY vm.created_at DESC`
-  );
   res.json(rows);
 });
 

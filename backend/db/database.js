@@ -155,8 +155,8 @@ async function connect(attempts = 3, delayMs = 1_000) {
         logger.info(`[DB] Retrying in ${wait} ms…`);
         await new Promise(r => setTimeout(r, wait));
       } else {
-        logger.error('[DB] Could not connect after all attempts – aborting startup');
-        process.exit(1);
+        logger.error('[DB] Could not connect after all attempts – continuing without DB');
+        throw new Error('DB connection failed after all retries');
       }
     }
   }

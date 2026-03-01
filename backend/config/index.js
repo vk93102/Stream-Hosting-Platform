@@ -113,33 +113,6 @@ module.exports = {
     twitch:  { rtmpBase: 'rtmp://live.twitch.tv/app' },
   },
 
-  // ── OBS VM provisioning ────────────────────────────────────────────────────
-  //   Third-party options:
-  //
-  //   DigitalOcean Droplets  https://www.digitalocean.com
-  //     Required: DO_TOKEN
-  //     Cloud-init bootstraps: OBS + obs-websocket + Xvfb + x11vnc + noVNC
-  //
-  //   AWS EC2  https://aws.amazon.com/ec2
-  //     Required: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_AMI_ID
-  //
-  vm: {
-    provider: process.env.VM_PROVIDER || 'digitalocean',
-    digitalocean: {
-      token:  process.env.DO_TOKEN,
-      region: process.env.DO_REGION || 'sgp1',
-      size:   process.env.DO_SIZE   || 's-2vcpu-4gb',
-      image:  process.env.DO_IMAGE  || 'ubuntu-22-04-x64',
-    },
-    aws: {
-      accessKeyId:     process.env.AWS_ACCESS_KEY_ID,
-      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-      region:          process.env.AWS_REGION        || 'ap-southeast-1',
-      instanceType:    process.env.AWS_INSTANCE_TYPE || 't3.medium',
-      amiId:           process.env.AWS_AMI_ID,
-    },
-  },
-
   // ── BRB / Anti-Scuff Layer ─────────────────────────────────────────────────
   //   FFmpeg (system binary) used to loop BRB media or generate a lavfi screen.
   //   No third-party API; requires FFmpeg installed on the host.

@@ -94,12 +94,35 @@ router.post('/login', async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// GET /api/users/me  (requires auth)  –  full profile including stream keys
+// ─────────────────────────────────────────────────────────────────────────────
+router.get('/me', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT id, username, email, is_live, is_active, plan, prefer_srt,
+              stream_key, srt_passphrase,
+              youtube_url, twitch_url, kick_url,
+              stream_to_youtube, stream_to_twitch, stream_to_kick,
+              brb_enabled, brb_timeout_seconds, brb_media_path,
+              last_ip, stream_start_time, total_stream_hours, created_at
+         FROM users WHERE id=$1`,
+      [req.user.userId]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'User not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    logger.error('[Users] /me error:', err);
+    res.status(500).json({ error: 'Fetch failed' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // GET /api/users/:username
 // ─────────────────────────────────────────────────────────────────────────────
 router.get('/:username', async (req, res) => {
   try {
     const { rows } = await db.query(
-      `SELECT username, email, is_live, plan, vm_enabled,
+      `SELECT username, email, is_live, plan,
               stream_to_youtube, stream_to_kick, stream_to_twitch,
               created_at, total_stream_hours
          FROM users WHERE username=$1`,

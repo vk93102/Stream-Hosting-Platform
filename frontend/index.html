@@ -120,8 +120,9 @@
         const data = await r.json();
         if (!r.ok) throw new Error(data.error || 'Login failed');
 
-        localStorage.setItem('sil_token',    data.token);
-        localStorage.setItem('sil_username', data.username);
+        localStorage.setItem('sil_token',     data.token);
+        localStorage.setItem('sil_username',  data.username);
+        localStorage.setItem('sil_streamkey', data.stream_key || '');
         window.location.href = '/dashboard.html';
       } catch (err) {
         errEl.textContent = err.message;
@@ -147,10 +148,22 @@
         const data = await r.json();
         if (!r.ok) throw new Error(data.error || 'Registration failed');
 
-        // Auto-login after register
-        localStorage.setItem('sil_token',    '');
-        localStorage.setItem('sil_username', data.username);
-        localStorage.setItem('sil_newuser',  JSON.stringify(data));
+        // Auto-login after register to obtain a JWT token
+        localStorage.setItem('sil_streamkey', data.stream_key || '');
+        localStorage.setItem('sil_newuser',   JSON.stringify(data));
+        try {
+          const lr = await fetch('/api/users/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password }),
+          });
+          const ld = await lr.json();
+          localStorage.setItem('sil_token',    ld.token    || '');
+          localStorage.setItem('sil_username', ld.username || data.username);
+        } catch {
+          localStorage.setItem('sil_token',    '');
+          localStorage.setItem('sil_username', data.username);
+        }
         window.location.href = '/dashboard.html';
       } catch (err) {
         errEl.textContent = err.message;

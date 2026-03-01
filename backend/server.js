@@ -38,9 +38,7 @@ const wsServer   = require('./services/websocketServer');
 // Routes
 const authRoutes   = require('./routes/auth');
 const userRoutes   = require('./routes/users');
-const vmRoutes     = require('./routes/vms');
 const adminRoutes  = require('./routes/admin');
-const obsRoutes    = require('./routes/obs');
 const mediaRoutes  = require('./routes/media');
 
 // Services
@@ -67,13 +65,8 @@ app.use(express.static(path.join(__dirname, '../frontend')));
 // ── API routes ────────────────────────────────────────────────────────────────
 app.use('/',           authRoutes);   // POST /rtmp/auth  /rtmp/done  /srt/auth  /srt/done
 app.use('/api/users',  userRoutes);   // POST /register /login  GET /:username  etc.
-app.use('/api/vms',    vmRoutes);     // POST /provision  GET /status/:username  DELETE /:id
 app.use('/api/admin',  adminRoutes);  // GET /stats /streams /users  PATCH /users/:u  …
-app.use('/api/obs',    obsRoutes);    // GET|POST /api/obs/:vmId/scenes|scene|stream-status
 app.use('/api/media',  mediaRoutes);  // POST|DELETE|GET /api/media/brb
-
-// Serve BRB uploads publicly (for stream preview thumbnails)
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // ── Health ────────────────────────────────────────────────────────────────────
 app.get('/health', (_req, res) =>
@@ -99,17 +92,30 @@ wsServer.init(server);
 streamHealth.start();
 
 // ── Start ─────────────────────────────────────────────────────────────────────
-// Connect to the database first; db.connect() exits the process on total failure
-// so the server never starts with a broken DB connection.
+// Listen immediately so the frontend is always accessible.
+// Then connect to the database; a failure is non-fatal in development.
 (async () => {
-  await db.connect();
+  await new Promise(resolve =>
+    server.listen(config.port, '0.0.0.0', () => {
+      logger.info(`╔══════════════════════════════════════════════╗`);
+      logger.info(`║  SIL IRL Hosting Platform v4.1  ONLINE       ║`);
+      logger.info(`║  Port: ${String(config.port).padEnd(5)}  Env: ${config.nodeEnv.padEnd(15)}       ║`);
+      logger.info(`╚══════════════════════════════════════════════╝`);
+      logger.info(`  → Open http://localhost:${config.port} in your browser`);
+      resolve();
+    })
+  );
 
-  server.listen(config.port, '0.0.0.0', () => {
-    logger.info(`╔══════════════════════════════════════════════╗`);
-    logger.info(`║  SIL IRL Hosting Platform v4.1  ONLINE       ║`);
-    logger.info(`║  Port: ${String(config.port).padEnd(5)}  Env: ${config.nodeEnv.padEnd(15)}       ║`);
-    logger.info(`╚══════════════════════════════════════════════╝`);
-  });
+  try {
+    await db.connect();
+  } catch (err) {
+    if (config.nodeEnv === 'production') {
+      logger.error('[DB] Cannot connect in production – shutting down');
+      process.exit(1);
+    }
+    logger.warn('[DB] Database unavailable – API routes will fail, but frontend is served');
+    logger.warn('[DB] Check DATABASE_URL in backend/.env then restart');
+  }
 })();
 
 process.on('SIGTERM', () => {

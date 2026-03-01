@@ -27,12 +27,16 @@
     </div>
 
     <div class="nav-section">
-      <div class="nav-label">Infrastructure</div>
-      <button class="nav-item" data-section="obs-vm">
-        <span class="icon">🖥️</span> OBS VM
-      </button>
+      <div class="nav-label">History</div>
       <button class="nav-item" data-section="sessions">
         <span class="icon">📊</span> Session History
+      </button>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">Anti-Scuff</div>
+      <button class="nav-item" data-section="anti-scuff">
+        <span class="icon">🛡️</span> BRB / Health
       </button>
     </div>
 
@@ -66,6 +70,46 @@
     <!-- SECTION: Overview -->
     <!-- ═══════════════════════════════════════════════════════════════ -->
     <div id="section-overview" class="section active">
+
+      <!-- Platform quick-select -->
+      <div class="card" style="margin-bottom:24px;">
+        <div class="card-header" style="margin-bottom:18px;">
+          <h3>🎯 Stream To</h3>
+          <span style="font-size:.75rem;color:var(--muted);">Click a platform to toggle it on / off instantly</span>
+        </div>
+        <div class="platform-grid">
+
+          <button class="platform-tile pt-yt" id="tile-yt" onclick="togglePlatform('yt')">
+            <span class="pt-check">✓</span>
+            <div class="pt-icon">▶</div>
+            <div class="pt-name">YouTube</div>
+            <div class="pt-status" id="tile-yt-status">OFF</div>
+            <div class="pt-url"  id="tile-yt-url"></div>
+          </button>
+
+          <button class="platform-tile pt-kk" id="tile-kk" onclick="togglePlatform('kk')">
+            <span class="pt-check">✓</span>
+            <div class="pt-icon">⚡</div>
+            <div class="pt-name">Kick</div>
+            <div class="pt-status" id="tile-kk-status">OFF</div>
+            <div class="pt-url"  id="tile-kk-url"></div>
+          </button>
+
+          <button class="platform-tile pt-tw" id="tile-tw" onclick="togglePlatform('tw')">
+            <span class="pt-check">✓</span>
+            <div class="pt-icon">🟣</div>
+            <div class="pt-name">Twitch</div>
+            <div class="pt-status" id="tile-tw-status">OFF</div>
+            <div class="pt-url"  id="tile-tw-url"></div>
+          </button>
+
+        </div>
+        <p style="font-size:.74rem;color:var(--muted);margin-top:14px;">
+          Need to add a stream URL first? →
+          <a href="#" onclick="navigate('destinations')">Destinations</a>
+        </p>
+      </div>
+
       <div class="stats-grid">
         <div class="stat-card accent">
           <div class="label">Status</div>
@@ -262,85 +306,6 @@
     </div>
 
     <!-- ═══════════════════════════════════════════════════════════════ -->
-    <!-- SECTION: OBS VM -->
-    <!-- ═══════════════════════════════════════════════════════════════ -->
-    <div id="section-obs-vm" class="section">
-      <div class="card" style="margin-bottom:20px;">
-        <div class="card-header">
-          <h3>🖥️ Remote OBS Virtual Machine</h3>
-          <span class="badge badge-pro">Pro Feature</span>
-        </div>
-        <p style="color:var(--muted);font-size:.85rem;margin-bottom:20px;">
-          SIL spins up a cloud VM with headless OBS pre-installed and pointed at your SRT ingest.
-          Control OBS via browser-based VNC (noVNC) — no software install required.
-        </p>
-
-        <div id="vmStatusArea">
-          <div class="vm-card">
-            <div class="vm-status-row">
-              <div class="vm-status-dot none" id="vmDot"></div>
-              <strong id="vmStatusText">No VM provisioned</strong>
-            </div>
-            <div id="vmDetails" style="display:none;">
-              <div class="two-col" style="gap:12px;margin-bottom:16px;">
-                <div>
-                  <div style="font-size:.72rem;color:var(--muted);">IP Address</div>
-                  <code id="vmIp" style="font-size:.85rem;"></code>
-                </div>
-                <div>
-                  <div style="font-size:.72rem;color:var(--muted);">Region</div>
-                  <code id="vmRegion" style="font-size:.85rem;"></code>
-                </div>
-                <div>
-                  <div style="font-size:.72rem;color:var(--muted);">OBS WebSocket Password</div>
-                  <code id="vmObsPass" style="font-size:.85rem;"></code>
-                </div>
-                <div>
-                  <div style="font-size:.72rem;color:var(--muted);">Browser VNC</div>
-                  <a id="vmNovncLink" href="#" target="_blank" style="font-size:.85rem;">Open noVNC →</a>
-                </div>
-              </div>
-              <button class="btn btn-danger btn-sm" onclick="terminateVM()">🗑️ Terminate VM</button>
-            </div>
-          </div>
-        </div>
-
-        <div id="vmProvisionArea" style="margin-top:16px;">
-          <div class="form-group">
-            <label>VM Region</label>
-            <select id="vmRegion">
-              <option value="sgp1">Singapore (sgp1) – Asia Pacific</option>
-              <option value="blr1">Bangalore (blr1) – India</option>
-              <option value="nyc3">New York (nyc3) – USA East</option>
-              <option value="sfo3">San Francisco (sfo3) – USA West</option>
-              <option value="lon1">London (lon1) – Europe</option>
-              <option value="fra1">Frankfurt (fra1) – Europe</option>
-              <option value="syd1">Sydney (syd1) – Australia</option>
-            </select>
-          </div>
-          <button class="btn btn-primary" onclick="provisionVM()">🚀 Provision OBS VM</button>
-          <p style="color:var(--muted);font-size:.75rem;margin-top:8px;">
-            VM costs ~$0.036/hr (DigitalOcean s-2vcpu-4gb). Terminate when not in use.
-          </p>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-header"><h3>OBS VM Setup Guide</h3></div>
-        <div style="color:var(--muted);font-size:.85rem;line-height:2;">
-          <p>Once your VM is <strong style="color:var(--accent);">Running</strong>:</p>
-          <ol style="padding-left:20px;margin-top:8px;">
-            <li>Click <strong>Open noVNC →</strong> to access OBS in your browser</li>
-            <li>OBS is pre-configured to stream via SRT → SIL ingest → your destinations</li>
-            <li>Add your scenes and sources in OBS normally</li>
-            <li>Hit <strong>Start Streaming</strong> in OBS – SIL picks it up automatically</li>
-            <li>To control OBS remotely via API: use the OBS WebSocket plugin on port 4455</li>
-          </ol>
-        </div>
-      </div>
-    </div>
-
-    <!-- ═══════════════════════════════════════════════════════════════ -->
     <!-- SECTION: Session History -->
     <!-- ═══════════════════════════════════════════════════════════════ -->
     <div id="section-sessions" class="section">
@@ -364,6 +329,100 @@
               <tr><td colspan="5" style="text-align:center;color:var(--muted);">Loading…</td></tr>
             </tbody>
           </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- SECTION: Anti-Scuff / BRB -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <div id="section-anti-scuff" class="section">
+
+      <!-- Live health stats -->
+      <div class="stats-grid" style="margin-bottom:20px;">
+        <div class="stat-card">
+          <div class="label">Bitrate</div>
+          <div class="value" id="healthBitrate">—</div>
+          <div class="sub">kbps (ingest)</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Packet Loss</div>
+          <div class="value" id="healthLoss">—</div>
+          <div class="sub">% (SRT)</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Signal Quality</div>
+          <div class="value" id="healthQuality" style="font-size:1rem;">—</div>
+          <div class="sub">excellent / good / fair / poor</div>
+        </div>
+        <div class="stat-card accent" id="brbStateCard">
+          <div class="label">BRB State</div>
+          <div class="value" id="brbStateDisplay">—</div>
+          <div class="sub" id="brbStateSub"></div>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <!-- BRB Settings -->
+        <div class="card">
+          <div class="card-header"><h3>🛡️ BRB Settings</h3></div>
+          <p style="color:var(--muted);font-size:.82rem;margin-bottom:16px;">
+            When your signal drops, SIL keeps your platform connections alive by playing
+            a BRB loop. Viewers see your BRB screen instead of a stream error.
+          </p>
+
+          <div class="toggle-row" style="padding-top:0;margin-bottom:16px;">
+            <div class="label-col">
+              <strong>Enable BRB Recovery</strong>
+              <span>Keep platforms live during signal drops</span>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" id="brbEnabled" checked/>
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div class="form-group">
+            <label>BRB Timeout (seconds)</label>
+            <input type="number" id="brbTimeout" value="300" min="30" max="1800"
+                   placeholder="300" style="max-width:160px;"/>
+            <small style="color:var(--muted);display:block;margin-top:4px;">Give up BRB and end stream after this many seconds (30 – 1800)</small>
+          </div>
+
+          <div class="form-group">
+            <label>Grace Period</label>
+            <div style="font-size:.9rem;color:var(--muted);">10 seconds (server-configured via <code>BRB_GRACE_MS</code>)</div>
+          </div>
+
+          <button class="btn btn-primary" onclick="saveBRBSettings()">💾 Save BRB Settings</button>
+        </div>
+
+        <!-- BRB Media Upload -->
+        <div class="card">
+          <div class="card-header"><h3>📺 BRB Media</h3></div>
+          <p style="color:var(--muted);font-size:.82rem;margin-bottom:16px;">
+            Upload a custom BRB video or image. If none is uploaded, SIL generates
+            a "Be Right Back" screen automatically.
+          </p>
+
+          <div id="brbMediaInfo" style="background:var(--card2);border:1px solid var(--border);
+               border-radius:8px;padding:12px;margin-bottom:16px;font-size:.85rem;">
+            Loading…
+          </div>
+
+          <div class="form-group">
+            <label>Upload BRB Video or Image</label>
+            <input type="file" id="brbFileInput"
+                   accept="video/mp4,video/quicktime,video/webm,image/jpeg,image/png"
+                   onchange="previewBRBFile(this)"/>
+            <small style="color:var(--muted);display:block;margin-top:4px;">MP4 / MOV / WEBM / JPG / PNG · max 100 MB</small>
+            <div id="brbFilePreview" style="margin-top:8px;font-size:.8rem;color:var(--accent);"></div>
+          </div>
+
+          <div style="display:flex;gap:10px;">
+            <button class="btn btn-primary" onclick="uploadBRBMedia()" id="uploadBrbBtn">⬆ Upload</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteBRBMedia()">🗑 Delete</button>
+          </div>
         </div>
       </div>
     </div>
