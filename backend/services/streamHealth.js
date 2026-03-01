@@ -16,7 +16,6 @@
  * and increments a "missed_poll" counter, then triggers BRB after
  * MISSED_POLLS_BEFORE_BRB consecutive misses.
  */
-
 const axios      = require('axios');
 const logger     = require('../utils/logger');
 const config     = require('../config');

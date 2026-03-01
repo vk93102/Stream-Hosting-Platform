@@ -41,9 +41,19 @@ CREATE TABLE IF NOT EXISTS users (
     -- VM access
     vm_enabled       BOOLEAN     DEFAULT false,
 
+    -- Anti-Scuff: BRB (Be Right Back) settings
+    brb_enabled          BOOLEAN     DEFAULT true,    -- keep platforms alive on signal drop
+    brb_timeout_seconds  INTEGER     DEFAULT 300,     -- give up BRB after N seconds (max 1800)
+    brb_media_path       TEXT,                        -- relative path: "brb/<username>.mp4"
+
     created_at       TIMESTAMPTZ DEFAULT NOW(),
     updated_at       TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Run these if adding BRB to an existing database:
+-- ALTER TABLE users ADD COLUMN IF NOT EXISTS brb_enabled         BOOLEAN DEFAULT true;
+-- ALTER TABLE users ADD COLUMN IF NOT EXISTS brb_timeout_seconds INTEGER DEFAULT 300;
+-- ALTER TABLE users ADD COLUMN IF NOT EXISTS brb_media_path      TEXT;
 
 -- ──────────────────────────────────────────────────────────────
 -- STREAM SESSIONS  (full history)

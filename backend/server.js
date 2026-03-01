@@ -32,13 +32,19 @@ const rateLimit  = require('express-rate-limit');
 
 const config     = require('./config');
 const logger     = require('./utils/logger');
+const db         = require('./db/database');
 const wsServer   = require('./services/websocketServer');
 
 // Routes
-const authRoutes  = require('./routes/auth');
-const userRoutes  = require('./routes/users');
-const vmRoutes    = require('./routes/vms');
-const adminRoutes = require('./routes/admin');
+const authRoutes   = require('./routes/auth');
+const userRoutes   = require('./routes/users');
+const vmRoutes     = require('./routes/vms');
+const adminRoutes  = require('./routes/admin');
+const obsRoutes    = require('./routes/obs');
+const mediaRoutes  = require('./routes/media');
+
+// Services
+const streamHealth = require('./services/streamHealth');
 
 // ─────────────────────────────────────────────────────────────────────────────
 const app    = express();
@@ -63,10 +69,15 @@ app.use('/',           authRoutes);   // POST /rtmp/auth  /rtmp/done  /srt/auth 
 app.use('/api/users',  userRoutes);   // POST /register /login  GET /:username  etc.
 app.use('/api/vms',    vmRoutes);     // POST /provision  GET /status/:username  DELETE /:id
 app.use('/api/admin',  adminRoutes);  // GET /stats /streams /users  PATCH /users/:u  …
+app.use('/api/obs',    obsRoutes);    // GET|POST /api/obs/:vmId/scenes|scene|stream-status
+app.use('/api/media',  mediaRoutes);  // POST|DELETE|GET /api/media/brb
+
+// Serve BRB uploads publicly (for stream preview thumbnails)
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // ── Health ────────────────────────────────────────────────────────────────────
 app.get('/health', (_req, res) =>
-  res.json({ status: 'online', version: '4.0.0', uptime: Math.floor(process.uptime()) })
+  res.json({ status: 'online', version: '4.1.0', uptime: Math.floor(process.uptime()) })
 );
 
 // ── SPA catch-all ─────────────────────────────────────────────────────────────
@@ -84,17 +95,29 @@ app.use((err, _req, res, _next) => {
 // ── WebSocket (real-time dashboard) ──────────────────────────────────────────
 wsServer.init(server);
 
+// ── Stream health monitor (MediaMTX polling → WS broadcasts) ────────────────
+streamHealth.start();
+
 // ── Start ─────────────────────────────────────────────────────────────────────
-server.listen(config.port, '0.0.0.0', () => {
-  logger.info(`╔══════════════════════════════════════════════╗`);
-  logger.info(`║  SIL IRL Hosting Platform v4.0  ONLINE       ║`);
-  logger.info(`║  Port: ${String(config.port).padEnd(5)}  Env: ${config.nodeEnv.padEnd(15)}       ║`);
-  logger.info(`╚══════════════════════════════════════════════╝`);
-});
+// Connect to the database first; db.connect() exits the process on total failure
+// so the server never starts with a broken DB connection.
+(async () => {
+  await db.connect();
+
+  server.listen(config.port, '0.0.0.0', () => {
+    logger.info(`╔══════════════════════════════════════════════╗`);
+    logger.info(`║  SIL IRL Hosting Platform v4.1  ONLINE       ║`);
+    logger.info(`║  Port: ${String(config.port).padEnd(5)}  Env: ${config.nodeEnv.padEnd(15)}       ║`);
+    logger.info(`╚══════════════════════════════════════════════╝`);
+  });
+})();
 
 process.on('SIGTERM', () => {
   logger.info('SIGTERM – shutting down gracefully');
-  server.close(() => process.exit(0));
+  server.close(async () => {
+    await db.disconnect();
+    process.exit(0);
+  });
 });
 
 module.exports = app;
