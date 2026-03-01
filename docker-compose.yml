@@ -1,0 +1,84 @@
+# ============================================================
+#  SIL IRL Hosting Platform  –  Docker Compose
+#  Full stack: nginx-rtmp  •  MediaMTX (SRT)  •  Node.js API
+#
+#  Usage:
+#    cp backend/.env.example backend/.env  # fill in values
+#    docker compose up -d
+# ============================================================
+
+version: "3.9"
+
+networks:
+  sil-net:
+    driver: bridge
+
+volumes:
+  hls-data:
+  mediamtx-logs:
+  node-logs:
+
+services:
+
+  # ── nginx-rtmp  (RTMP ingest on port 1935, HTTP on 80) ──────────────────
+  nginx-rtmp:
+    image: tiangolo/nginx-rtmp:latest
+    container_name: sil-nginx-rtmp
+    restart: unless-stopped
+    ports:
+      - "1935:1935"   # RTMP ingest (OBS, Streamlabs, etc.)
+      - "80:80"       # HTTP (HLS playback, proxy to Node.js)
+    volumes:
+      - ./configs/nginx-rtmp.conf:/etc/nginx/nginx.conf:ro
+      - hls-data:/tmp/hls
+    networks:
+      - sil-net
+    depends_on:
+      - sil-api
+
+  # ── MediaMTX  (SRT ingest on port 9999, HLS on 8888) ───────────────────
+  mediamtx:
+    image: bluenviron/mediamtx:latest
+    container_name: sil-mediamtx
+    restart: unless-stopped
+    ports:
+      - "9999:9999/udp"   # SRT ingest  (IRL Pro, Larix, etc.)
+      - "8888:8888"       # HLS preview (optional)
+      - "9997:9997"       # MediaMTX REST API
+    volumes:
+      - ./configs/mediamtx.yml:/mediamtx.yml:ro
+      - mediamtx-logs:/logs
+    networks:
+      - sil-net
+    environment:
+      - MTX_LOGLEVEL=info
+    depends_on:
+      - sil-api
+
+  # ── SIL Node.js Control Plane ────────────────────────────────────────────
+  sil-api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sil-api
+    restart: unless-stopped
+    ports:
+      - "3000:3000"   # API + WebSocket + Frontend
+    volumes:
+      - node-logs:/app/logs
+    networks:
+      - sil-net
+    env_file:
+      - ./backend/.env
+    environment:
+      - NODE_ENV=production
+      - RTMP_LOCAL=rtmp://nginx-rtmp/live
+      - SRT_SERVER=mediamtx
+      - SRT_PORT=9999
+      - MEDIAMTX_API=http://mediamtx:9997
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s

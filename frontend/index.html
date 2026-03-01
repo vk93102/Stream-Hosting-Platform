@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SIL Hosting – IRL Streaming Platform</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    /* ── Landing / Login page only ── */
+    body { display:flex; align-items:center; justify-content:center; min-height:100vh; }
+
+    .auth-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 48px 40px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 24px 64px rgba(0,0,0,.6);
+    }
+    .auth-card .logo { text-align:center; margin-bottom:32px; }
+    .auth-card .logo h1 { font-size:2rem; color:var(--accent); margin:0; }
+    .auth-card .logo p  { color:var(--muted); font-size:.85rem; margin-top:4px; }
+
+    .tabs { display:flex; gap:4px; margin-bottom:28px; background:var(--bg); border-radius:8px; padding:4px; }
+    .tab  { flex:1; padding:8px; text-align:center; border-radius:6px; cursor:pointer;
+            font-size:.85rem; color:var(--muted); border:none; background:none; transition:.2s; }
+    .tab.active { background:var(--accent); color:#000; font-weight:600; }
+
+    .tab-panel { display:none; }
+    .tab-panel.active { display:block; }
+
+    .btn-primary { width:100%; margin-top:8px; }
+    .hint { text-align:center; margin-top:16px; font-size:.8rem; color:var(--muted); }
+    .hint a { color:var(--accent); text-decoration:none; }
+
+    #loginError, #regError { display:none; color:var(--danger); font-size:.82rem; margin-top:8px; }
+  </style>
+</head>
+<body>
+  <div class="auth-card">
+    <div class="logo">
+      <h1>▶ SIL</h1>
+      <p>IRL Streaming Hosting Platform</p>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="login">Sign In</button>
+      <button class="tab"       data-tab="register">Register</button>
+    </div>
+
+    <!-- LOGIN -->
+    <div id="loginPanel" class="tab-panel active">
+      <form id="loginForm">
+        <div class="form-group">
+          <label>Username</label>
+          <input type="text" id="loginUser" placeholder="your_username" required />
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="loginPass" placeholder="••••••••" />
+        </div>
+        <div id="loginError" class="error-msg"></div>
+        <button type="submit" class="btn btn-primary">Sign In</button>
+      </form>
+      <p class="hint">No account? <a href="#" id="goRegister">Register free →</a></p>
+    </div>
+
+    <!-- REGISTER -->
+    <div id="registerPanel" class="tab-panel">
+      <form id="registerForm">
+        <div class="form-group">
+          <label>Username</label>
+          <input type="text" id="regUser" placeholder="your_username" required />
+        </div>
+        <div class="form-group">
+          <label>Email (optional)</label>
+          <input type="email" id="regEmail" placeholder="you@example.com" />
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="regPass" placeholder="••••••••" />
+        </div>
+        <div id="regError" class="error-msg"></div>
+        <button type="submit" class="btn btn-primary">Create Account</button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // ── Tab switching ──────────────────────────────────────────────────────
+    document.querySelectorAll('.tab').forEach(t => {
+      t.addEventListener('click', () => switchTab(t.dataset.tab));
+    });
+    document.getElementById('goRegister').addEventListener('click', (e) => {
+      e.preventDefault(); switchTab('register');
+    });
+
+    function switchTab(name) {
+      document.querySelectorAll('.tab').forEach(t =>
+        t.classList.toggle('active', t.dataset.tab === name));
+      document.querySelectorAll('.tab-panel').forEach(p =>
+        p.classList.toggle('active', p.id === name + 'Panel'));
+    }
+
+    // ── Login ──────────────────────────────────────────────────────────────
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const username = document.getElementById('loginUser').value.trim();
+      const password = document.getElementById('loginPass').value;
+      const errEl    = document.getElementById('loginError');
+      errEl.style.display = 'none';
+
+      try {
+        const r = await fetch('/api/users/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password }),
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.error || 'Login failed');
+
+        localStorage.setItem('sil_token',    data.token);
+        localStorage.setItem('sil_username', data.username);
+        window.location.href = '/dashboard.html';
+      } catch (err) {
+        errEl.textContent = err.message;
+        errEl.style.display = 'block';
+      }
+    });
+
+    // ── Register ───────────────────────────────────────────────────────────
+    document.getElementById('registerForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const username = document.getElementById('regUser').value.trim();
+      const email    = document.getElementById('regEmail').value.trim();
+      const password = document.getElementById('regPass').value;
+      const errEl    = document.getElementById('regError');
+      errEl.style.display = 'none';
+
+      try {
+        const r = await fetch('/api/users/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, email, password }),
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.error || 'Registration failed');
+
+        // Auto-login after register
+        localStorage.setItem('sil_token',    '');
+        localStorage.setItem('sil_username', data.username);
+        localStorage.setItem('sil_newuser',  JSON.stringify(data));
+        window.location.href = '/dashboard.html';
+      } catch (err) {
+        errEl.textContent = err.message;
+        errEl.style.display = 'block';
+      }
+    });
+
+    // Redirect if already logged in
+    if (localStorage.getItem('sil_token')) window.location.href = '/dashboard.html';
+  </script>
+</body>
+</html>
