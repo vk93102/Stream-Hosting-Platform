@@ -11,7 +11,7 @@ const router      = require('express').Router();
 const db          = require('../db/database');
 const restreamer  = require('../services/restreamer');
 const brbManager  = require('../services/brbManager');
-const { handleSRTAuth } = require('../services/srtRouter');
+const { handleSRTAuth, parseStreamKey } = require('../services/srtRouter');
 const { broadcast }     = require('../services/websocketServer');
 const logger      = require('../utils/logger');
 
@@ -95,13 +95,12 @@ router.post('/rtmp/done', async (req, res) => {
 // ── SRT auth (MediaMTX webhook) ───────────────────────────────────────────────
 router.post('/srt/auth', async (req, res) => {
   // MediaMTX sends: { "id": "<streamid>", "ip": "<client_ip>", ... }
-  const streamId = req.body.id || req.body.name || '';
-  const clientIp = req.body.ip || req.body.addr  || req.ip;
+  const streamId = req.body.id || req.body.name || req.query.id || req.query.name || '';
+  const clientIp = req.body.ip || req.body.addr || req.query.ip || req.query.addr || req.ip;
 
-  // srtRouter parses the raw stream_key from the streamId
   // Cancel any active BRB (this is a reconnect)
-  const rawKey = streamId.startsWith('stream:') ? streamId.slice(7).split('&')[0] : streamId;
-  brbManager.onReconnect(rawKey);
+  const rawKey = parseStreamKey(streamId);
+  if (rawKey) brbManager.onReconnect(rawKey);
 
   const { authorized } = await handleSRTAuth(streamId, clientIp);
   res.sendStatus(authorized ? 200 : 403);
@@ -110,11 +109,11 @@ router.post('/srt/auth', async (req, res) => {
 // ── SRT done (MediaMTX webhook) ──────────────────────────────────────────────
 router.post('/srt/done', async (req, res) => {
   res.sendStatus(200);
-  const streamId = req.body.id || req.body.name || '';
-  const rawKey   = streamId.startsWith('stream:') ? streamId.slice(7).split('&')[0] : streamId;
+  const streamId = req.body.id || req.body.name || req.query.id || req.query.name || '';
+  const rawKey   = parseStreamKey(streamId);
 
   // Stop live restream – BRB will take over platform connections
-  restreamer.stop(rawKey);
+  if (rawKey) restreamer.stop(rawKey);
 
   try {
     const { rows } = await db.query(

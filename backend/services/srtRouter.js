@@ -28,7 +28,7 @@ const config     = require('../config');
  * @param {string} clientIp
  */
 async function handleSRTAuth(streamId, clientIp) {
-  const streamKey = _parseStreamKey(streamId);
+  const streamKey = parseStreamKey(streamId);
 
   try {
     const { rows } = await db.query(
@@ -77,7 +77,7 @@ async function handleSRTAuth(streamId, clientIp) {
  * @param {string} streamId
  */
 async function handleSRTDone(streamId) {
-  const streamKey = _parseStreamKey(streamId);
+  const streamKey = parseStreamKey(streamId);
 
   try {
     restreamer.stop(streamKey);
@@ -109,23 +109,54 @@ async function handleSRTDone(streamId) {
  *
  * SRT encoder settings (e.g. in IRL Pro / Larix):
  *   URL:        srt://<SERVER_IP>:9999
- *   streamid:   stream:<stream_key>
+ *   streamid:   publish:<stream_key>
  *   passphrase: <srt_passphrase>   (optional but recommended)
  *   latency:    2000 ms
  *   mode:       caller
  */
 function buildSRTIngestURL(serverIp, streamKey, passphrase = null) {
   const port = config.srt.port;
-  let url = `srt://${serverIp}:${port}?streamid=stream:${streamKey}&latency=2000&mode=caller`;
+  // MediaMTX SRT publishing uses: streamid=publish:<path>
+  let url = `srt://${serverIp}:${port}?streamid=publish:${streamKey}&latency=2000&mode=caller`;
   if (passphrase) url += `&passphrase=${passphrase}&pbkeylen=16`;
   return url;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 /** Normalise streamId → raw stream key */
-function _parseStreamKey(streamId) {
-  if (!streamId) return '';
-  return streamId.startsWith('stream:') ? streamId.slice(7) : streamId;
+function parseStreamKey(streamId) {
+  if (!streamId || typeof streamId !== 'string') return '';
+
+  // MediaMTX often passes the full query string, e.g.
+  //   "streamid=stream:<KEY>&passphrase=...&latency=..."
+  // It can also pass just "stream:<KEY>".
+  let candidate = streamId.trim();
+
+  // If it looks like a querystring, try to extract the streamid parameter.
+  if (candidate.includes('=') && (candidate.includes('streamid=') || candidate.includes('&'))) {
+    try {
+      const params = new URLSearchParams(candidate);
+      const streamid = params.get('streamid');
+      if (streamid) candidate = streamid;
+    } catch {
+      // Fall through to the generic parsing logic.
+    }
+  }
+
+  // If streamid value is embedded inside a longer string, pull out after known prefixes.
+  // MediaMTX default: publish:<path> (or read:<path>), older SIL configs used stream:<key>.
+  const prefixes = ['publish:', 'read:', 'stream:'];
+  for (const prefix of prefixes) {
+    const idx = candidate.indexOf(prefix);
+    if (idx !== -1) {
+      candidate = candidate.slice(idx + prefix.length);
+      break;
+    }
+  }
+
+  // Strip any leftover query fragments.
+  candidate = candidate.split('&')[0].split('?')[0].trim();
+  return candidate;
 }
 
-module.exports = { handleSRTAuth, handleSRTDone, buildSRTIngestURL };
+module.exports = { handleSRTAuth, handleSRTDone, buildSRTIngestURL, parseStreamKey };

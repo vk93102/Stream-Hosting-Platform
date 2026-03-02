@@ -57,8 +57,9 @@ class RestreamSession extends EventEmitter {
     // Input source: pull from local ingest server
     let inputUrl;
     if (ingestType === 'srt') {
-      // Pull SRT from MediaMTX via its RTMP re-publish endpoint (simpler)
-      inputUrl = `${config.rtmp.localServer}/${this.streamKey}`;
+      // MediaMTX can convert protocols automatically; in our stack it exposes an
+      // internal RTMP listener on port 1936. Pull from there for SRT ingests.
+      inputUrl = `rtmp://${config.srt.server}:1936/${this.streamKey}`;
     } else {
       inputUrl = `${config.rtmp.localServer}/${this.streamKey}`;
     }

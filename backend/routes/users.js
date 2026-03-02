@@ -11,7 +11,7 @@
  */
 const router = require('express').Router();
 const crypto = require('crypto');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const jwt    = require('jsonwebtoken');
 
 const db     = require('../db/database');
@@ -31,7 +31,7 @@ router.post('/register', async (req, res) => {
   const srtPassphrase = crypto.randomBytes(8).toString('hex');
 
   try {
-    const hash = password ? await bcrypt.hash(password, 12) : null;
+    const hash = password ? bcrypt.hashSync(password, 12) : null;
 
     await db.query(
       `INSERT INTO users (username, email, password_hash, stream_key, srt_passphrase, is_active)
@@ -71,7 +71,7 @@ router.post('/login', async (req, res) => {
 
     const user = rows[0];
     if (user.password_hash && password) {
-      const ok = await bcrypt.compare(password, user.password_hash);
+      const ok = bcrypt.compareSync(password, user.password_hash);
       if (!ok) return res.status(401).json({ error: 'Invalid credentials' });
     }
 
