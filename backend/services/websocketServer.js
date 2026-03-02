@@ -25,6 +25,15 @@ const clients = new Map();
 function init(httpServer) {
   wss = new WebSocketServer({ server: httpServer, path: '/ws' });
 
+  // If the underlying HTTP server fails to bind (e.g. EADDRINUSE),
+  // ws re-emits the error on wss.  Catch it here so it doesn't throw uncaught.
+  wss.on('error', (err) => {
+    if (err.code !== 'EADDRINUSE') {
+      logger.error('[WS] Server error:', err.message);
+    }
+    // The http server's own error handler will do the exit/logging.
+  });
+
   wss.on('connection', (ws, req) => {
     const id = `ws-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
     clients.set(id, ws);

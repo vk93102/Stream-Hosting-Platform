@@ -92,7 +92,7 @@ async function loadProfile() {
 
     const badge = document.getElementById('liveStatusBadge');
     badge.className = `badge ${isLive ? 'badge-live' : 'badge-offline'}`;
-    badge.textContent = isLive ? '● LIVE' : '● Offline';
+    badge.innerHTML = isLive ? '<i class="fa-solid fa-circle-dot"></i> LIVE' : '<i class="fa-regular fa-circle-dot"></i> Offline';
 
     // Destination count
     let destCount = 0;
@@ -104,17 +104,14 @@ async function loadProfile() {
     if (isLive) renderLiveInfo(u);
     else        document.getElementById('liveInfo').innerHTML =
       '<p style="color:var(--muted);">No active stream. Connect your encoder to go live.</p>';
-
-    updatePlatformTiles(u);
   } catch {}
-}
 }
 
 function renderLiveInfo(u) {
   const dests = [];
-  if (u.stream_to_youtube) dests.push(`<span class="badge badge-youtube">▶ YouTube</span>`);
-  if (u.stream_to_kick)    dests.push(`<span class="badge badge-kick">⚡ Kick</span>`);
-  if (u.stream_to_twitch)  dests.push(`<span class="badge badge-twitch">🟣 Twitch</span>`);
+  if (u.stream_to_youtube) dests.push(`<span class="badge badge-youtube"><i class="fa-brands fa-youtube"></i> YouTube</span>`);
+  if (u.stream_to_kick)    dests.push(`<span class="badge badge-kick"><i class="fa-solid fa-bolt"></i> Kick</span>`);
+  if (u.stream_to_twitch)  dests.push(`<span class="badge badge-twitch"><i class="fa-brands fa-twitch"></i> Twitch</span>`);
 
   document.getElementById('liveInfo').innerHTML = `
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
@@ -139,10 +136,13 @@ function updatePlatformTiles(u) {
     const urlEl  = document.getElementById(`tile-${key}-url`);
     if (!tile) continue;
     tile.classList.toggle('pt-on', on);
-    // disable tile if no URL saved yet — user must set it in Destinations first
-    tile.disabled = !url;
-    status.textContent = on ? 'ON' : (url ? 'OFF' : 'No URL set');
-    if (urlEl) urlEl.textContent = url ? new URL(url.startsWith('rtmp') ? url.replace(/^rtmps?/, 'https') : url).hostname : '';
+    tile.disabled = false; // always clickable — togglePlatform handles missing-URL case
+    status.textContent = on ? 'ON' : (url ? 'OFF' : 'Add URL →');
+    if (urlEl) {
+      try {
+        urlEl.textContent = url ? new URL(url.startsWith('rtmp') ? url.replace(/^rtmps?/, 'https') : url).hostname : '';
+      } catch { urlEl.textContent = url ? url.substring(0, 28) + '…' : ''; }
+    }
   }
 }
 
@@ -152,18 +152,27 @@ function updatePlatformTiles(u) {
  */
 async function togglePlatform(key) {
   const tile = document.getElementById(`tile-${key}`);
-  if (!tile || tile.disabled) return;
+  if (!tile) return;
 
-  const isOn = tile.classList.contains('pt-on');
-  // Optimistic UI update
-  tile.classList.toggle('pt-on', !isOn);
-  document.getElementById(`tile-${key}-status`).textContent = !isOn ? 'ON' : 'OFF';
+  const labels = { yt: 'YouTube', kk: 'Kick', tw: 'Twitch' };
+  const isOn   = tile.classList.contains('pt-on'); // capture BEFORE any changes
   tile.disabled = true;
 
   try {
-    // Read the current form values so we don't accidentally wipe sibling URLs
+    // Fetch current state — lets us check for URL and keep sibling fields intact
     const current = await api('GET', '/api/users/me');
     if (!current) return;
+
+    const urlMap = { yt: current.youtube_url, kk: current.kick_url, tw: current.twitch_url };
+    if (!urlMap[key]) {
+      toast(`Add a ${labels[key]} stream URL in Destinations first`, 'warn');
+      navigate('destinations');
+      return;
+    }
+
+    // Optimistic UI update
+    tile.classList.toggle('pt-on', !isOn);
+    document.getElementById(`tile-${key}-status`).textContent = !isOn ? 'ON' : 'OFF';
 
     await api('PUT', '/api/users/destinations', {
       yt_url: current.youtube_url || '',
@@ -174,15 +183,11 @@ async function togglePlatform(key) {
       tw_on:  key === 'tw' ? !isOn : !!current.stream_to_twitch,
     });
 
-    const label = { yt: 'YouTube', kk: 'Kick', tw: 'Twitch' }[key];
-    toast(`${label} ${!isOn ? 'enabled ✓' : 'disabled'}`, !isOn ? 'success' : '');
-    // Re-sync all tiles + profile stats
+    toast(`${labels[key]} ${!isOn ? 'enabled ✓' : 'disabled'}`, !isOn ? 'success' : '');
     loadProfile();
-    // Sync the destinations form checkboxes too
-    const chk = document.getElementById(key === 'yt' ? 'ytOn' : key === 'kk' ? 'kkOn' : 'twOn');
-    if (chk) chk.checked = !isOn;
+    loadDestinations(); // re-sync tiles + form checkboxes with server state
   } catch (err) {
-    // Revert optimistic update
+    // Revert optimistic update back to original state
     tile.classList.toggle('pt-on', isOn);
     document.getElementById(`tile-${key}-status`).textContent = isOn ? 'ON' : 'OFF';
     toast(err.message, 'error');
@@ -323,9 +328,9 @@ async function loadBRBInfo() {
     const mediaEl = document.getElementById('brbMediaInfo');
     if (info.file_exists) {
       const kb = Math.round(info.file_size / 1024);
-      mediaEl.innerHTML = `✅ Custom BRB media: <strong>${info.brb_media_path?.split('/').pop()}</strong> · ${kb} KB`;
+      mediaEl.innerHTML = `<i class="fa-solid fa-circle-check" style="color:var(--accent)"></i> Custom BRB media: <strong>${info.brb_media_path?.split('/').pop()}</strong> · ${kb} KB`;
     } else {
-      mediaEl.innerHTML = 'ℹ️ No custom BRB media uploaded. Using auto-generated "Be Right Back" screen.';
+      mediaEl.innerHTML = '<i class="fa-solid fa-circle-info" style="color:var(--info)"></i> No custom BRB media uploaded. Using auto-generated "Be Right Back" screen.';
     }
   } catch { /* not a blocker */ }
 }
@@ -347,13 +352,13 @@ function previewBRBFile(input) {
   if (!brbFileToUpload) return;
   const preview = document.getElementById('brbFilePreview');
   const mb = (brbFileToUpload.size / 1024 / 1024).toFixed(1);
-  preview.textContent = `📄 ${brbFileToUpload.name} · ${mb} MB`;
+  preview.innerHTML = `<i class="fa-solid fa-file-video"></i> ${brbFileToUpload.name} · ${mb} MB`;
 }
 
 async function uploadBRBMedia() {
   if (!brbFileToUpload) return toast('Select a file first', 'error');
   const btn = document.getElementById('uploadBrbBtn');
-  btn.textContent = '⏳ Uploading…';
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Uploading…';
   btn.disabled = true;
   try {
     const fd = new FormData();
@@ -373,7 +378,7 @@ async function uploadBRBMedia() {
   } catch (err) {
     toast('Upload failed: ' + err.message, 'error');
   } finally {
-    btn.textContent = '⬆ Upload';
+    btn.innerHTML = '<i class="fa-solid fa-upload"></i> Upload';
     btn.disabled = false;
   }
 }
@@ -427,33 +432,38 @@ function handleWSMessage(msg) {
 
   switch (msg.type) {
     case 'live_update':
-      append(`📡 ${msg.activeStreams} live stream(s)  |  ${msg.ffmpegSessions?.length || 0} FFmpeg session(s)`);
+      append(`<i class="fa-solid fa-signal"></i> ${msg.activeStreams} live stream(s)  |  ${msg.ffmpegSessions?.length || 0} FFmpeg session(s)`);
       if (msg.streams?.some(s => s.username === USERNAME)) {
         document.getElementById('liveStatusBadge').className = 'badge badge-live';
-        document.getElementById('liveStatusBadge').textContent = '● LIVE';
+        document.getElementById('liveStatusBadge').innerHTML = '<i class="fa-solid fa-circle-dot"></i> LIVE';
       }
       break;
     case 'stream_start':
-      append(`▶ ${msg.data?.username} went live (${msg.data?.ingestType})`);
+      append(`<i class="fa-solid fa-circle-play"></i> ${msg.data?.username} went live (${msg.data?.ingestType})`);
       if (msg.data?.username === USERNAME) loadProfile();
       break;
     case 'stream_end':
-      append(`■ Stream ended`);
+      append(`<i class="fa-solid fa-stop"></i> Stream ended`);
       if (msg.data?.username === USERNAME) loadProfile();
       break;
     case 'brb_state': {
       const d    = msg.data || {};
-      const icon = { grace: '⏳', brb_active: '🔴', live: '📡', ended: '■' }[d.state] || '•';
+      const icon = {
+        grace:      '<i class="fa-solid fa-hourglass-half"></i>',
+        brb_active: '<i class="fa-solid fa-record-vinyl" style="color:var(--danger)"></i>',
+        live:       '<i class="fa-solid fa-signal"></i>',
+        ended:      '<i class="fa-solid fa-stop"></i>',
+      }[d.state] || '•';
       append(`${icon} BRB: ${d.username} → ${d.state}${d.reconnects ? ` (reconnect #${d.reconnects})` : ''}`);
       if (d.username === USERNAME) {
         const display = document.getElementById('brbStateDisplay');
         const sub     = document.getElementById('brbStateSub');
         const card    = document.getElementById('brbStateCard');
         if (display) {
-          display.textContent = d.state === 'grace'      ? '⏳ Grace Period'
-                               : d.state === 'brb_active' ? '🔴 BRB Active'
-                               : d.state === 'live'        ? '📡 Live'
-                               : '■ Ended';
+          display.innerHTML = d.state === 'grace'      ? '<i class="fa-solid fa-hourglass-half"></i> Grace Period'
+                            : d.state === 'brb_active' ? '<i class="fa-solid fa-record-vinyl" style="color:var(--danger)"></i> BRB Active'
+                            : d.state === 'live'        ? '<i class="fa-solid fa-signal"></i> Live'
+                            : '<i class="fa-solid fa-stop"></i> Ended';
           if (sub) sub.textContent = d.reconnects ? `${d.reconnects} reconnect(s)` : '';
           if (card) card.style.border = d.state === 'brb_active'
             ? '2px solid var(--danger)'
@@ -479,7 +489,7 @@ function handleWSMessage(msg) {
       break;
     }
     case 'quality_warn':
-      append(`⚠️ High packet loss: ${msg.data?.loss_pct}%  bitrate=${msg.data?.bitrate_kbps}kbps`);
+      append(`<i class="fa-solid fa-triangle-exclamation" style="color:var(--warn)"></i> High packet loss: ${msg.data?.loss_pct}%  bitrate=${msg.data?.bitrate_kbps}kbps`);
       break;
     case 'pong':
       break;
@@ -498,7 +508,7 @@ function copyText(elementId) {
 function toast(message, type = 'success') {
   const container = document.getElementById('toast-container');
   const el = document.createElement('div');
-  el.className = `toast ${type === 'error' ? 'error' : ''}`;
+  el.className = `toast ${type === 'error' ? 'error' : type === 'warn' ? 'warn' : ''}`;
   el.textContent = message;
   container.appendChild(el);
   setTimeout(() => el.remove(), 4_000);

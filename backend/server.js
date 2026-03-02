@@ -95,15 +95,25 @@ streamHealth.start();
 // Listen immediately so the frontend is always accessible.
 // Then connect to the database; a failure is non-fatal in development.
 (async () => {
-  await new Promise(resolve =>
-    server.listen(config.port, '0.0.0.0', () => {
-      logger.info(`╔══════════════════════════════════════════════╗`);
-      logger.info(`║  SIL IRL Hosting Platform v4.1  ONLINE       ║`);
-      logger.info(`║  Port: ${String(config.port).padEnd(5)}  Env: ${config.nodeEnv.padEnd(15)}       ║`);
-      logger.info(`╚══════════════════════════════════════════════╝`);
-      logger.info(`  → Open http://localhost:${config.port} in your browser`);
-      resolve();
-    })
+  await new Promise((resolve, reject) =>
+    server
+      .listen(config.port, '0.0.0.0', () => {
+        logger.info(`╔══════════════════════════════════════════════╗`);
+        logger.info(`║  SIL IRL Hosting Platform v4.1  ONLINE       ║`);
+        logger.info(`║  Port: ${String(config.port).padEnd(5)}  Env: ${config.nodeEnv.padEnd(15)}       ║`);
+        logger.info(`╚══════════════════════════════════════════════╝`);
+        logger.info(`  → Open http://localhost:${config.port} in your browser`);
+        resolve();
+      })
+      .on('error', (err) => {
+        if (err.code === 'EADDRINUSE') {
+          logger.error(`Port ${config.port} is already in use.`);
+          logger.error(`Run:  lsof -ti :${config.port} | xargs kill -9`);
+          logger.error(`Then restart the server.`);
+          process.exit(1);
+        }
+        reject(err);
+      })
   );
 
   try {

@@ -79,7 +79,7 @@ h3 { font-size: 1rem;    font-weight: 600; }
 }
 .nav-item:hover  { background: var(--card2); color: var(--text); }
 .nav-item.active { background: rgba(0,229,160,.12); color: var(--accent); font-weight: 600; }
-.nav-item .icon  { font-size: 1.1rem; width: 20px; text-align: center; }
+.nav-item .icon  { font-size: 1.05rem; width: 18px; text-align: center; flex-shrink: 0; }
 
 .sidebar-footer { margin-top: auto; padding-top: 16px; border-top: 1px solid var(--border); }
 
@@ -326,7 +326,15 @@ tr:hover td { background: var(--card2); }
 
 .platform-tile .pt-check  { position:absolute; top:10px; right:12px; font-size:.85rem;
                              opacity:0; transition:opacity .15s; color: var(--accent); }
-.platform-tile .pt-icon   { font-size: 2.2rem; line-height: 1; }
+.platform-tile .pt-icon   { font-size: 2.2rem; line-height: 1; transition: color .2s; }
+
+/* icon tinting: dimmed when off, full brand color when on */
+.platform-tile.pt-yt .pt-icon { color: rgba(255,0,0,.35); }
+.platform-tile.pt-kk .pt-icon { color: rgba(83,252,24,.35); }
+.platform-tile.pt-tw .pt-icon { color: rgba(145,70,255,.4); }
+.platform-tile.pt-yt.pt-on .pt-icon { color: var(--youtube); }
+.platform-tile.pt-kk.pt-on .pt-icon { color: var(--kick); }
+.platform-tile.pt-tw.pt-on .pt-icon { color: var(--twitch); }
 .platform-tile .pt-name   { font-size: 1rem; font-weight: 700; }
 .platform-tile .pt-status { font-size: .72rem; font-weight: 600; letter-spacing: .06em;
                              text-transform: uppercase; color: var(--muted); }

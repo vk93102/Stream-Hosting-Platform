@@ -5,38 +5,39 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>SIL – Dashboard</title>
   <link rel="stylesheet" href="css/style.css"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer"/>
 </head>
 <body>
 <div class="page-layout">
 
   <!-- ── Sidebar ──────────────────────────────────────────────────────── -->
   <aside class="sidebar" id="sidebar">
-    <div class="logo">▶ SIL <span>Hosting</span></div>
+    <div class="logo"><i class="fa-solid fa-tower-broadcast"></i> SIL <span>Hosting</span></div>
 
     <div class="nav-section">
       <div class="nav-label">Streaming</div>
       <button class="nav-item active" data-section="overview">
-        <span class="icon">📡</span> Overview
+        <i class="fa-solid fa-signal icon"></i> Overview
       </button>
       <button class="nav-item" data-section="destinations">
-        <span class="icon">🎯</span> Destinations
+        <i class="fa-solid fa-satellite-dish icon"></i> Destinations
       </button>
       <button class="nav-item" data-section="ingest">
-        <span class="icon">🔑</span> Ingest Keys
+        <i class="fa-solid fa-key icon"></i> Ingest Keys
       </button>
     </div>
 
     <div class="nav-section">
       <div class="nav-label">History</div>
       <button class="nav-item" data-section="sessions">
-        <span class="icon">📊</span> Session History
+        <i class="fa-solid fa-chart-simple icon"></i> Session History
       </button>
     </div>
 
     <div class="nav-section">
       <div class="nav-label">Anti-Scuff</div>
       <button class="nav-item" data-section="anti-scuff">
-        <span class="icon">🛡️</span> BRB / Health
+        <i class="fa-solid fa-shield-halved icon"></i> BRB / Health
       </button>
     </div>
 
@@ -46,7 +47,7 @@
         <span id="wsStatus">Connecting…</span>
       </div>
       <button class="nav-item" onclick="logout()">
-        <span class="icon">🚪</span> Sign Out
+        <i class="fa-solid fa-right-from-bracket icon"></i> Sign Out
       </button>
     </div>
   </aside>
@@ -61,8 +62,8 @@
         </div>
       </div>
       <div style="display:flex;gap:10px;align-items:center;">
-        <span id="liveStatusBadge" class="badge badge-offline">● Offline</span>
-        <button class="btn btn-secondary btn-sm" onclick="refreshAll()">↺ Refresh</button>
+        <span id="liveStatusBadge" class="badge badge-offline"><i class="fa-regular fa-circle-dot"></i> Offline</span>
+        <button class="btn btn-secondary btn-sm" onclick="refreshAll()"><i class="fa-solid fa-rotate-right"></i> Refresh</button>
       </div>
     </div>
 
@@ -74,14 +75,14 @@
       <!-- Platform quick-select -->
       <div class="card" style="margin-bottom:24px;">
         <div class="card-header" style="margin-bottom:18px;">
-          <h3>🎯 Stream To</h3>
+          <h3><i class="fa-solid fa-satellite-dish"></i> Stream To</h3>
           <span style="font-size:.75rem;color:var(--muted);">Click a platform to toggle it on / off instantly</span>
         </div>
         <div class="platform-grid">
 
           <button class="platform-tile pt-yt" id="tile-yt" onclick="togglePlatform('yt')">
             <span class="pt-check">✓</span>
-            <div class="pt-icon">▶</div>
+            <div class="pt-icon"><i class="fa-brands fa-youtube"></i></div>
             <div class="pt-name">YouTube</div>
             <div class="pt-status" id="tile-yt-status">OFF</div>
             <div class="pt-url"  id="tile-yt-url"></div>
@@ -89,7 +90,7 @@
 
           <button class="platform-tile pt-kk" id="tile-kk" onclick="togglePlatform('kk')">
             <span class="pt-check">✓</span>
-            <div class="pt-icon">⚡</div>
+            <div class="pt-icon"><i class="fa-solid fa-bolt"></i></div>
             <div class="pt-name">Kick</div>
             <div class="pt-status" id="tile-kk-status">OFF</div>
             <div class="pt-url"  id="tile-kk-url"></div>
@@ -97,7 +98,7 @@
 
           <button class="platform-tile pt-tw" id="tile-tw" onclick="togglePlatform('tw')">
             <span class="pt-check">✓</span>
-            <div class="pt-icon">🟣</div>
+            <div class="pt-icon"><i class="fa-brands fa-twitch"></i></div>
             <div class="pt-name">Twitch</div>
             <div class="pt-status" id="tile-tw-status">OFF</div>
             <div class="pt-url"  id="tile-tw-url"></div>
@@ -178,7 +179,7 @@
           <div style="background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:12px;">
             <div class="toggle-row" style="padding-top:0;">
               <div class="label-col">
-                <strong style="color:var(--youtube);">▶ YouTube Live</strong>
+                <strong style="color:var(--youtube);"><i class="fa-brands fa-youtube"></i> YouTube Live</strong>
                 <span>rtmp://a.rtmp.youtube.com/live2/&lt;key&gt;</span>
               </div>
               <label class="toggle">
@@ -196,7 +197,7 @@
           <div style="background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:12px;">
             <div class="toggle-row" style="padding-top:0;">
               <div class="label-col">
-                <strong style="color:var(--kick);">⚡ Kick</strong>
+                <strong style="color:var(--kick);"><i class="fa-solid fa-bolt"></i> Kick</strong>
                 <span>rtmps://fa723fc1b171.global-contribute.live-video.net:443/app/&lt;key&gt;</span>
               </div>
               <label class="toggle">
@@ -214,7 +215,7 @@
           <div style="background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:20px;">
             <div class="toggle-row" style="padding-top:0;">
               <div class="label-col">
-                <strong style="color:var(--twitch);">🟣 Twitch</strong>
+                <strong style="color:var(--twitch);"><i class="fa-brands fa-twitch"></i> Twitch</strong>
                 <span>rtmp://live.twitch.tv/app/&lt;key&gt;</span>
               </div>
               <label class="toggle">
@@ -228,7 +229,7 @@
             </div>
           </div>
 
-          <button type="submit" class="btn btn-primary">💾 Save Destinations</button>
+          <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Save Destinations</button>
         </form>
       </div>
     </div>
@@ -296,12 +297,12 @@
 
       <div class="card" style="margin-top:20px;">
         <div class="card-header">
-          <h3>⚠️ Rotate Stream Key</h3>
+          <h3><i class="fa-solid fa-triangle-exclamation" style="color:var(--warn);"></i> Rotate Stream Key</h3>
         </div>
         <p style="color:var(--muted);font-size:.85rem;margin-bottom:16px;">
           Generate a new stream key. Your old key will stop working immediately.
         </p>
-        <button class="btn btn-danger" id="rotateKeyBtn" onclick="rotateKey()">🔄 Rotate Stream Key</button>
+        <button class="btn btn-danger" id="rotateKeyBtn" onclick="rotateKey()"><i class="fa-solid fa-arrows-rotate"></i> Rotate Stream Key</button>
       </div>
     </div>
 
@@ -312,7 +313,7 @@
       <div class="card">
         <div class="card-header">
           <h3>Stream Session History</h3>
-          <button class="btn btn-secondary btn-sm" onclick="loadSessions()">↺ Refresh</button>
+          <button class="btn btn-secondary btn-sm" onclick="loadSessions()"><i class="fa-solid fa-rotate-right"></i> Refresh</button>
         </div>
         <div class="table-wrap">
           <table id="sessionsTable">
@@ -365,7 +366,7 @@
       <div class="two-col">
         <!-- BRB Settings -->
         <div class="card">
-          <div class="card-header"><h3>🛡️ BRB Settings</h3></div>
+          <div class="card-header"><h3><i class="fa-solid fa-shield-halved"></i> BRB Settings</h3></div>
           <p style="color:var(--muted);font-size:.82rem;margin-bottom:16px;">
             When your signal drops, SIL keeps your platform connections alive by playing
             a BRB loop. Viewers see your BRB screen instead of a stream error.
@@ -394,12 +395,12 @@
             <div style="font-size:.9rem;color:var(--muted);">10 seconds (server-configured via <code>BRB_GRACE_MS</code>)</div>
           </div>
 
-          <button class="btn btn-primary" onclick="saveBRBSettings()">💾 Save BRB Settings</button>
+          <button class="btn btn-primary" onclick="saveBRBSettings()"><i class="fa-solid fa-floppy-disk"></i> Save BRB Settings</button>
         </div>
 
         <!-- BRB Media Upload -->
         <div class="card">
-          <div class="card-header"><h3>📺 BRB Media</h3></div>
+          <div class="card-header"><h3><i class="fa-solid fa-display"></i> BRB Media</h3></div>
           <p style="color:var(--muted);font-size:.82rem;margin-bottom:16px;">
             Upload a custom BRB video or image. If none is uploaded, SIL generates
             a "Be Right Back" screen automatically.
@@ -420,8 +421,8 @@
           </div>
 
           <div style="display:flex;gap:10px;">
-            <button class="btn btn-primary" onclick="uploadBRBMedia()" id="uploadBrbBtn">⬆ Upload</button>
-            <button class="btn btn-danger btn-sm" onclick="deleteBRBMedia()">🗑 Delete</button>
+            <button class="btn btn-primary" onclick="uploadBRBMedia()" id="uploadBrbBtn"><i class="fa-solid fa-upload"></i> Upload</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteBRBMedia()"><i class="fa-solid fa-trash"></i> Delete</button>
           </div>
         </div>
       </div>

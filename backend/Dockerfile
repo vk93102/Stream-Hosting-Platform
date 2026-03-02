@@ -1,16 +1,11 @@
 FROM node:20-alpine
 
-# Install ffmpeg (required for restreaming)
-RUN apk add --no-cache ffmpeg curl
-
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm ci --omit=dev
+RUN npm ci --only=production
 
 COPY . .
-
-RUN mkdir -p logs
 
 EXPOSE 3000
 
