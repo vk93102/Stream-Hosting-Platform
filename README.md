@@ -85,13 +85,20 @@ psql $DATABASE_URL < backend/db/schema.sql
 ### 4a. Run with Docker (recommended)
 
 ```bash
-docker compose up -d
+# Ensure Docker daemon is running first:
+# - Docker Desktop: open the app
+# - Colima (macOS): colima start
+
+docker-compose up -d
 ```
 
 Services started:
 - `sil-api`      → http://localhost:3000
 - `nginx-rtmp`   → rtmp://localhost:1935/live (RTMP ingest)
 - `mediamtx`     → srt://localhost:9999 (SRT ingest)
+
+If you only start the Node.js API (port 3000) without nginx-rtmp, OBS will show
+"Failed to connect" because nothing is listening on `:1935`.
 
 ### 4b. Run manually
 

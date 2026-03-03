@@ -1,0 +1,53 @@
+# MediaMTX configuration for Docker deployments.
+# Key difference vs the local config: webhooks must target the API container
+# via Docker DNS (`sil-api`) instead of 127.0.0.1.
+
+logLevel: info
+logDestinations: [stdout, file]
+logFile: logs/mediamtx.log
+
+readTimeout:  10s
+writeTimeout: 10s
+readBufferCount: 4096
+udpMaxPayloadSize: 1472
+
+api: yes
+apiAddress: :9997
+
+metrics: yes
+metricsAddress: :9998
+
+rtmp: yes
+rtmpAddress: :1936
+rtmpEncryption: no
+
+srt: yes
+srtAddress: :9999
+
+hls: yes
+hlsAddress: :8888
+hlsAlwaysRemux: no
+hlsSegmentCount: 3
+hlsSegmentDuration: 2s
+hlsPartDuration: 200ms
+
+webrtc: no
+
+paths:
+  all_others:
+    runOnPublish: >
+      curl -s -X POST http://sil-api:3000/srt/auth
+      -H "Content-Type: application/json"
+      -d "{\"id\":\"%%{query}\",\"ip\":\"%%{sourceIp}\"}"
+    runOnPublishRestart: no
+
+    runOnUnpublish: >
+      curl -s -X POST http://sil-api:3000/srt/done
+      -H "Content-Type: application/json"
+      -d "{\"id\":\"%%{query}\"}"
+
+    sourceOnDemand: no
+    publishUser: ""
+    publishPass: ""
+    readUser: ""
+    readPass: ""

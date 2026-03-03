@@ -29,7 +29,7 @@ services:
       - "1935:1935"   # RTMP ingest (OBS, Streamlabs, etc.)
       - "80:80"       # HTTP (HLS playback, proxy to Node.js)
     volumes:
-      - ./configs/nginx-rtmp.conf:/etc/nginx/nginx.conf:ro
+      - ./configs/nginx-rtmp.docker.conf:/etc/nginx/nginx.conf:ro
       - hls-data:/tmp/hls
     networks:
       - sil-net
@@ -46,7 +46,7 @@ services:
       - "8888:8888"       # HLS preview (optional)
       - "9997:9997"       # MediaMTX REST API
     volumes:
-      - ./configs/mediamtx.yml:/mediamtx.yml:ro
+      - ./configs/mediamtx.docker.yml:/mediamtx.yml:ro
       - mediamtx-logs:/logs
     networks:
       - sil-net
