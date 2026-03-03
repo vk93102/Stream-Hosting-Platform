@@ -5,7 +5,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js",
+    "dev": "node scripts/dev-local.js",
+    "dev:api": "nodemon server.js",
     "db:migrate": "node db/migrate.js",
     "db:migrate:status": "node db/migrate.js status"
   },

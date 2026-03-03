@@ -23,6 +23,11 @@
  */
 
 require('dotenv').config();
+
+// macOS sometimes throws EIO when stdin/TTY disappears (e.g. backgrounded process).
+// Ignore it so the server doesn't crash.
+try { process.stdin.on('error', () => {}); } catch {}
+
 const express    = require('express');
 const http       = require('http');
 const path       = require('path');

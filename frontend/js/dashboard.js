@@ -249,7 +249,7 @@ async function loadIngestInfo() {
     const u    = await api('GET', '/api/users/me');
     if (!u) return; // api() returned undefined → 401 redirect already triggered
     const host = location.hostname;
-    const rtmpServer = `rtmp://${host}/live`;
+    const rtmpServer = `rtmp://${host}:1935/live`;
     const srtFull    = `srt://${host}:9999?streamid=stream:${u.stream_key}&latency=2000&mode=caller`
                      + (u.srt_passphrase ? `&passphrase=${u.srt_passphrase}&pbkeylen=16` : '');
     document.getElementById('rtmpUrl').textContent  = rtmpServer;

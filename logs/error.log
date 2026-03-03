@@ -1,3 +1,45 @@
 2026-03-01 19:11:48 [ERROR] [DB] Query error duplicate key value violates unique constraint "users_username_key" {"code":"23505","query":"INSERT INTO users (username, email, password_hash, stream_key, srt_passphrase, is_active) VALUES ($1, $2, $3, $4,"}
 2026-03-03 17:57:44 [ERROR] [DB] Query error duplicate key value violates unique constraint "users_username_key" {"code":"23505","query":"INSERT INTO users (username, email, password_hash, stream_key, srt_passphrase, is_active) VALUES ($1, $2, $3, $4,"}
 2026-03-03 17:57:50 [ERROR] [DB] Query error duplicate key value violates unique constraint "users_username_key" {"code":"23505","query":"INSERT INTO users (username, email, password_hash, stream_key, srt_passphrase, is_active) VALUES ($1, $2, $3, $4,"}
+2026-03-03 18:36:45 [ERROR] [DB] Query error inconsistent types deduced for parameter $1 {"code":"42P08","query":"INSERT INTO stream_sessions (user_id, stream_key, ingest_type, client_ip) SELECT id, $1, 'rtmp', $2 FROM users "}
+2026-03-03 18:36:45 [ERROR] error: inconsistent types deduced for parameter $1
+    at /Users/vishaljha/Desktop/Stream-Hosting-Platform/backend/node_modules/pg/lib/client.js:631:17
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.query (/Users/vishaljha/Desktop/Stream-Hosting-Platform/backend/db/database.js:66:20)
+    at async Promise.all (index 1)
+    at async /Users/vishaljha/Desktop/Stream-Hosting-Platform/backend/routes/auth.js:63:5 {"length":154,"name":"error","severity":"ERROR","code":"42P08","detail":"text versus character varying","position":"95","file":"parse_param.c","line":"219","routine":"variable_coerce_param_hook"}
+2026-03-03 18:36:53 [ERROR] [DB] Query error inconsistent types deduced for parameter $1 {"code":"42P08","query":"INSERT INTO stream_sessions (user_id, stream_key, ingest_type, client_ip) SELECT id, $1, 'rtmp', $2 FROM users "}
+2026-03-03 18:36:53 [ERROR] error: inconsistent types deduced for parameter $1
+    at /Users/vishaljha/Desktop/Stream-Hosting-Platform/backend/node_modules/pg/lib/client.js:631:17
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.query (/Users/vishaljha/Desktop/Stream-Hosting-Platform/backend/db/database.js:66:20)
+    at async Promise.all (index 1)
+    at async /Users/vishaljha/Desktop/Stream-Hosting-Platform/backend/routes/auth.js:63:5 {"length":154,"name":"error","severity":"ERROR","code":"42P08","detail":"text versus character varying","position":"95","file":"parse_param.c","line":"219","routine":"variable_coerce_param_hook"}
+2026-03-03 18:37:01 [ERROR] [DB] Query error inconsistent types deduced for parameter $1 {"code":"42P08","query":"INSERT INTO stream_sessions (user_id, stream_key, ingest_type, client_ip) SELECT id, $1, 'rtmp', $2 FROM users "}
+2026-03-03 18:37:01 [ERROR] error: inconsistent types deduced for parameter $1
+    at /Users/vishaljha/Desktop/Stream-Hosting-Platform/backend/node_modules/pg/lib/client.js:631:17
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.query (/Users/vishaljha/Desktop/Stream-Hosting-Platform/backend/db/database.js:66:20)
+    at async Promise.all (index 1)
+    at async /Users/vishaljha/Desktop/Stream-Hosting-Platform/backend/routes/auth.js:63:5 {"length":154,"name":"error","severity":"ERROR","code":"42P08","detail":"text versus character varying","position":"95","file":"parse_param.c","line":"219","routine":"variable_coerce_param_hook"}
+2026-03-03 18:37:08 [ERROR] [DB] Query error inconsistent types deduced for parameter $1 {"code":"42P08","query":"INSERT INTO stream_sessions (user_id, stream_key, ingest_type, client_ip) SELECT id, $1, 'rtmp', $2 FROM users "}
+2026-03-03 18:37:08 [ERROR] error: inconsistent types deduced for parameter $1
+    at /Users/vishaljha/Desktop/Stream-Hosting-Platform/backend/node_modules/pg/lib/client.js:631:17
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.query (/Users/vishaljha/Desktop/Stream-Hosting-Platform/backend/db/database.js:66:20)
+    at async Promise.all (index 1)
+    at async /Users/vishaljha/Desktop/Stream-Hosting-Platform/backend/routes/auth.js:63:5 {"length":154,"name":"error","severity":"ERROR","code":"42P08","detail":"text versus character varying","position":"95","file":"parse_param.c","line":"219","routine":"variable_coerce_param_hook"}
+2026-03-03 18:37:15 [ERROR] [DB] Query error inconsistent types deduced for parameter $1 {"code":"42P08","query":"INSERT INTO stream_sessions (user_id, stream_key, ingest_type, client_ip) SELECT id, $1, 'rtmp', $2 FROM users "}
+2026-03-03 18:37:15 [ERROR] error: inconsistent types deduced for parameter $1
+    at /Users/vishaljha/Desktop/Stream-Hosting-Platform/backend/node_modules/pg/lib/client.js:631:17
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.query (/Users/vishaljha/Desktop/Stream-Hosting-Platform/backend/db/database.js:66:20)
+    at async Promise.all (index 1)
+    at async /Users/vishaljha/Desktop/Stream-Hosting-Platform/backend/routes/auth.js:63:5 {"length":154,"name":"error","severity":"ERROR","code":"42P08","detail":"text versus character varying","position":"95","file":"parse_param.c","line":"219","routine":"variable_coerce_param_hook"}
+2026-03-03 18:37:22 [ERROR] [DB] Query error inconsistent types deduced for parameter $1 {"code":"42P08","query":"INSERT INTO stream_sessions (user_id, stream_key, ingest_type, client_ip) SELECT id, $1, 'rtmp', $2 FROM users "}
+2026-03-03 18:37:22 [ERROR] error: inconsistent types deduced for parameter $1
+    at /Users/vishaljha/Desktop/Stream-Hosting-Platform/backend/node_modules/pg/lib/client.js:631:17
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.query (/Users/vishaljha/Desktop/Stream-Hosting-Platform/backend/db/database.js:66:20)
+    at async Promise.all (index 1)
+    at async /Users/vishaljha/Desktop/Stream-Hosting-Platform/backend/routes/auth.js:63:5 {"length":154,"name":"error","severity":"ERROR","code":"42P08","detail":"text versus character varying","position":"95","file":"parse_param.c","line":"219","routine":"variable_coerce_param_hook"}

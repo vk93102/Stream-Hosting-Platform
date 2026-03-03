@@ -49,8 +49,8 @@ A **production-ready**, self-hosted IRL streaming platform that provides:
 |------|---------|
 | Node.js 18+ | Control plane API |
 | FFmpeg | Multi-destination restreaming |
-| nginx + rtmp-module | RTMP ingest |
-| MediaMTX | SRT ingest |
+| MediaMTX | RTMP+SRT ingest (local dev) |
+| nginx + rtmp-module | RTMP ingest (production option) |
 | PostgreSQL / Supabase | Database |
 | Docker (optional) | Full stack deployment |
 
@@ -100,7 +100,31 @@ Services started:
 If you only start the Node.js API (port 3000) without nginx-rtmp, OBS will show
 "Failed to connect" because nothing is listening on `:1935`.
 
-### 4b. Run manually
+### 4b. Run locally (no Docker, recommended for dev)
+
+This repo includes a local dev runner that starts:
+- MediaMTX RTMP ingest on `:1935` using `configs/mediamtx.local-rtmp.yml`
+- SIL API on `:3000`
+
+macOS install (once):
+
+```bash
+brew install bluenviron/mediamtx/mediamtx
+```
+
+Run:
+
+```bash
+cd backend
+npm install
+npm run dev
+```
+
+OBS settings for local dev:
+- Server: `rtmp://localhost:1935/live`
+- Stream Key: the key shown in the dashboard
+
+### 4c. Run manually (advanced)
 
 ```bash
 # Terminal 1 – MediaMTX (SRT)
@@ -124,7 +148,7 @@ node server.js
 | Setting | Value |
 |---------|-------|
 | Service | Custom… |
-| Server  | `rtmp://YOUR_SERVER_IP/live` |
+| Server  | `rtmp://YOUR_SERVER_IP:1935/live` |
 | Stream Key | *(your stream key from dashboard)* |
 | Encoder | x264 or NVENC |
 | Bitrate | 4000–8000 kbps |

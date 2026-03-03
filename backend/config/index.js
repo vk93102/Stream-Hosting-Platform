@@ -52,7 +52,12 @@ module.exports = {
   corsOrigin:     process.env.CORS_ORIGIN || '*',
 
   /** Public-facing IP / hostname of this server (used in ingest URLs). */
-  serverPublicIp: process.env.SERVER_PUBLIC_IP || '127.0.0.1',
+  serverPublicIp: (() => {
+    const raw = (process.env.SERVER_PUBLIC_IP || '').trim();
+    if (!raw) return 'localhost';
+    if (raw === 'YOUR_SERVER_IP_OR_HOSTNAME' || raw === 'YOUR_SERVER_IP') return 'localhost';
+    return raw;
+  })(),
 
   // ── Database (Supabase / PostgreSQL) ───────────────────────────────────────
   //   Third-party service: Supabase (https://supabase.com)

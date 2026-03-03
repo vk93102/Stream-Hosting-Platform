@@ -15,6 +15,15 @@ const { handleSRTAuth, parseStreamKey } = require('../services/srtRouter');
 const { broadcast }     = require('../services/websocketServer');
 const logger      = require('../utils/logger');
 
+const normalizeStreamKey = (raw) => {
+  if (!raw) return '';
+  const s = String(raw).trim();
+  const noQuery = s.split('?')[0];
+  const parts = noQuery.split('/').filter(Boolean);
+  const last = (parts.length ? parts[parts.length - 1] : noQuery).trim();
+  return last.replace(/^stream:/, '').trim();
+};
+
 // Fields fetched for BRB – destination URLs must be included
 const BRB_FIELDS = `username, youtube_url, twitch_url, kick_url,
               stream_to_youtube, stream_to_twitch, stream_to_kick,
@@ -22,9 +31,17 @@ const BRB_FIELDS = `username, youtube_url, twitch_url, kick_url,
 
 // ── RTMP auth (nginx-rtmp on_publish) ────────────────────────────────────────
 router.post('/rtmp/auth', async (req, res) => {
-  // nginx-rtmp posts: name=<stream_key>&addr=<client_ip>&...
-  const streamKey = req.body.name || req.body.key;
-  const clientIp  = req.body.addr || req.ip;
+  // Supported callers:
+  // - nginx-rtmp on_publish: name=<stream_key>&addr=<client_ip>&...
+  // - MediaMTX authHTTPAddress: JSON { action, path, protocol, ip, query, ... }
+  if (req.body?.action && req.body.action !== 'publish') {
+    return res.sendStatus(200);
+  }
+
+  const streamKey = normalizeStreamKey(
+    req.body?.name || req.body?.key || req.body?.path || req.body?.id
+  );
+  const clientIp  = req.body?.addr || req.body?.ip || req.ip;
 
   if (!streamKey) return res.sendStatus(400);
 
@@ -51,7 +68,7 @@ router.post('/rtmp/auth', async (req, res) => {
       ),
       db.query(
         `INSERT INTO stream_sessions (user_id, stream_key, ingest_type, client_ip)
-         SELECT id, $1, 'rtmp', $2 FROM users WHERE stream_key=$1`,
+         SELECT id, stream_key, 'rtmp', $2 FROM users WHERE stream_key=$1`,
         [streamKey, clientIp]
       ),
     ]);
@@ -70,7 +87,7 @@ router.post('/rtmp/auth', async (req, res) => {
 
 // ── RTMP done (nginx-rtmp on_done) ───────────────────────────────────────────
 router.post('/rtmp/done', async (req, res) => {
-  const streamKey = req.body.name;
+  const streamKey = normalizeStreamKey(req.body.name);
   res.sendStatus(200);   // ack immediately – nginx won't wait
 
   // Stop live restream instantly so we don't double-push to platforms

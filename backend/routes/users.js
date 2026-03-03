@@ -43,7 +43,11 @@ router.post('/register', async (req, res) => {
       success:    true,
       username,
       stream_key:  streamKey,
-      rtmp_ingest: `rtmp://${config.serverPublicIp}/live/${streamKey}`,
+      // OBS uses a server URL + stream key field. Provide both explicitly.
+      rtmp_server: `rtmp://${config.serverPublicIp}:1935/live`,
+      rtmp_stream_key: streamKey,
+      // Back-compat (single-url style for other encoders)
+      rtmp_ingest: `rtmp://${config.serverPublicIp}:1935/live/${streamKey}`,
       srt_ingest:  buildSRTIngestURL(config.serverPublicIp, streamKey, srtPassphrase),
       srt_passphrase: srtPassphrase,
     });
@@ -174,7 +178,9 @@ router.post('/regenerate-key', requireAuth, async (req, res) => {
     await db.query('UPDATE users SET stream_key=$1 WHERE username=$2', [newKey, req.user.username]);
     res.json({
       stream_key:  newKey,
-      rtmp_ingest: `rtmp://${config.serverPublicIp}/live/${newKey}`,
+      rtmp_server: `rtmp://${config.serverPublicIp}:1935/live`,
+      rtmp_stream_key: newKey,
+      rtmp_ingest: `rtmp://${config.serverPublicIp}:1935/live/${newKey}`,
     });
   } catch (err) {
     res.status(500).json({ error: 'Key rotation failed' });
