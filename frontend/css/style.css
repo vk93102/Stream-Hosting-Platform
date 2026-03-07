@@ -101,6 +101,11 @@ h3 { font-size: 1rem;    font-weight: 600; }
   box-shadow: var(--shadow);
 }
 
+.card-highlight {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(0, 229, 160, 0.25), var(--shadow);
+}
+
 .card-header {
   display: flex; align-items: center; justify-content: space-between;
   margin-bottom: 16px;

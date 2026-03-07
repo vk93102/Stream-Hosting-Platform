@@ -267,6 +267,16 @@ async function loadIngestInfo() {
   }
 }
 
+function jumpToIngest(which) {
+  const id = which === 'srt' ? 'ingest-srt-card' : 'ingest-rtmp-card';
+  const el = document.getElementById(id);
+  if (!el) return;
+
+  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  el.classList.add('card-highlight');
+  window.setTimeout(() => el.classList.remove('card-highlight'), 1500);
+}
+
 async function rotateKey() {
   if (!confirm('Rotate your stream key? The old key stops working immediately.')) return;
   try {

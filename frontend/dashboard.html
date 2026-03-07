@@ -238,9 +238,43 @@
     <!-- SECTION: Ingest Keys -->
     <!-- ═══════════════════════════════════════════════════════════════ -->
     <div id="section-ingest" class="section">
+      <div class="card" style="margin-bottom:20px;">
+        <div class="card-header">
+          <h3><i class="fa-solid fa-plug"></i> Choose Your Encoder</h3>
+          <span style="font-size:.75rem;color:var(--muted);">Pick the device/app you’re streaming from</span>
+        </div>
+        <div class="two-col" style="gap:14px;">
+          <div style="background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:14px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+              <div>
+                <div style="font-weight:700;"><i class="fa-solid fa-desktop"></i> OBS Studio / Streamlabs</div>
+                <div style="color:var(--muted);font-size:.78rem;">Use RTMP (Server URL + Stream Key)</div>
+              </div>
+              <button class="btn btn-secondary btn-sm" onclick="jumpToIngest('rtmp')">
+                <i class="fa-solid fa-arrow-down"></i> RTMP
+              </button>
+            </div>
+          </div>
+          <div style="background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:14px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+              <div>
+                <div style="font-weight:700;"><i class="fa-solid fa-satellite-dish"></i> LiveU Solo Pro / TVU / Larix / IRL Pro</div>
+                <div style="color:var(--muted);font-size:.78rem;">Use SRT (Full URL + Passphrase)</div>
+              </div>
+              <button class="btn btn-secondary btn-sm" onclick="jumpToIngest('srt')">
+                <i class="fa-solid fa-arrow-down"></i> SRT
+              </button>
+            </div>
+            <div style="margin-top:10px;color:var(--muted);font-size:.76rem;">
+              SRT uses <span style="color:var(--accent);font-family:monospace;">streamid=publish:&lt;your_key&gt;</span>.
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="two-col">
         <!-- RTMP -->
-        <div class="card">
+        <div class="card" id="ingest-rtmp-card">
           <div class="card-header">
             <h3>RTMP Ingest (OBS / Streamlabs)</h3>
             <span class="badge badge-rtmp">RTMP</span>
@@ -267,9 +301,9 @@
         </div>
 
         <!-- SRT -->
-        <div class="card">
+        <div class="card" id="ingest-srt-card">
           <div class="card-header">
-            <h3>SRT Ingest (IRL Pro / Larix)</h3>
+            <h3>SRT Ingest (LiveU / TVU / Larix / IRL Pro)</h3>
             <span class="badge badge-srt">SRT</span>
           </div>
           <div class="form-group">
