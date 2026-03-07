@@ -74,6 +74,15 @@ ADMIN_SECRET=your-admin-secret
 SERVER_PUBLIC_IP=YOUR_SERVER_IP
 ```
 
+Notes:
+- Generate secrets:
+  - `JWT_SECRET`: `openssl rand -hex 48`
+  - `ADMIN_SECRET`: `openssl rand -hex 32`
+- `SERVER_PUBLIC_IP` should be your public IP or domain (used when the backend returns ingest URLs during registration).
+- Database SSL:
+  - If you see `The server does not support SSL connections`, set `DB_SSL=false` (or add `?sslmode=disable` to `DATABASE_URL`).
+  - If your provider requires TLS, set `DB_SSL=true` (or add `?sslmode=require` to `DATABASE_URL`).
+
 ### 3. Database Setup
 
 Run the schema against your Supabase/PostgreSQL instance:
@@ -120,6 +129,14 @@ npm install
 npm run dev
 ```
 
+Sanity checks:
+
+```bash
+curl -s http://127.0.0.1:3000/health
+nc -zv 127.0.0.1 1935   # RTMP
+nc -zv 127.0.0.1 8554   # RTSP (used internally for SRT restream pulls)
+```
+
 OBS settings for local dev:
 - Server: `rtmp://localhost:1935/live`
 - Stream Key: the key shown in the dashboard
@@ -158,9 +175,67 @@ node server.js
 | Setting | Value |
 |---------|-------|
 | Protocol | SRT |
-| URL | `srt://YOUR_SERVER_IP:9999?streamid=stream:YOUR_KEY&latency=2000&mode=caller` |
+| URL | `srt://YOUR_SERVER_IP:9999?streamid=publish:YOUR_KEY&latency=2000&mode=caller` |
 | Passphrase | *(your SRT passphrase from dashboard)* |
 | Latency | 2000 ms |
+
+If you use LiveU Solo Pro / TVU, configure SRT with the same URL format and set:
+- `mode=caller`
+- `latency=2000` (increase to 3000–5000 on poor mobile networks)
+- `passphrase` enabled (recommended)
+
+### Local publish tests (no encoder)
+
+RTMP test (publishes 6 seconds of synthetic video+audio):
+
+```bash
+ffmpeg -re -f lavfi -i testsrc2=size=640x360:rate=30 \
+  -f lavfi -i sine=frequency=1000:sample_rate=48000 \
+  -c:v libx264 -preset veryfast -tune zerolatency \
+  -c:a aac -b:a 96k -t 6 -f flv \
+  rtmp://127.0.0.1:1935/live/<STREAM_KEY>
+```
+
+SRT test: many Homebrew `ffmpeg` builds don’t include SRT. If `ffmpeg` prints `Protocol not found` for `srt://...`, you can still test SRT ingest by relaying UDP→SRT:
+
+```bash
+KEY=<STREAM_KEY>
+srt-live-transmit -to:12 udp://127.0.0.1:12345 \
+  "srt://127.0.0.1:9999?mode=caller&latency=2000&streamid=publish:${KEY}" &
+
+ffmpeg -re -f lavfi -i testsrc2=size=640x360:rate=30 \
+  -f lavfi -i sine=frequency=1000:sample_rate=48000 \
+  -c:v libx264 -preset veryfast -tune zerolatency \
+  -c:a aac -b:a 96k -t 8 -f mpegts \
+  "udp://127.0.0.1:12345?pkt_size=1316"
+wait
+```
+
+---
+
+## BRB (Anti-Scuff) feature
+
+BRB (“Be Right Back”) keeps platform outputs alive when your mobile signal drops:
+- On disconnect, SIL starts a short grace period (`BRB_GRACE_MS`, default 10s).
+- If you reconnect within grace, viewers never see a drop.
+- If grace expires, SIL loops a BRB video/image (or an auto-generated BRB screen) to YouTube/Kick/Twitch until you reconnect or the BRB timeout hits.
+
+Enable + configure:
+- Dashboard → **BRB / Health**
+  - Toggle **Enable BRB Recovery**
+  - Set **BRB Timeout (seconds)** (per-user)
+  - Optional: upload BRB media (MP4/MOV/WEBM/JPG/PNG)
+
+How to verify BRB works:
+1. Enable at least one destination.
+2. Start streaming (RTMP or SRT) until you see LIVE.
+3. Stop the encoder/publish.
+4. Watch logs: you should see `Signal drop` → `Grace period started` → (after grace) `BRB loop started`.
+5. Start streaming again: you should see a `Reconnect` event and BRB stops.
+
+Intentional stop (end stream completely):
+- Dashboard → **BRB / Health** → **End Stream Now (No BRB)**
+- This immediately stops restreaming and finalizes the stream instead of running BRB.
 
 ### Streamlabs / OBS Mobile (RTMP)
 
@@ -269,10 +344,10 @@ SRT (Secure Reliable Transport) is the recommended protocol for IRL streaming ov
 
 ### How SRT auth works:
 
-1. IRL encoder connects: `srt://SERVER:9999?streamid=stream:STREAM_KEY&passphrase=PASS`
-2. MediaMTX calls webhook: `POST /srt/auth  { id: "stream:KEY", ip: "x.x.x.x" }`
+1. IRL encoder connects: `srt://SERVER:9999?streamid=publish:STREAM_KEY&passphrase=PASS`
+2. MediaMTX calls auth endpoint (HTTP auth): `POST /rtmp/auth` with `{ protocol: "srt", query: "streamid=publish:STREAM_KEY...", ip: "x.x.x.x" }`
 3. SIL queries DB, validates key, marks user live
-4. SIL waits 2s for SRT to stabilise, then starts FFmpeg pulling from local RTMP
+4. SIL waits ~2s for SRT to stabilise, then starts FFmpeg pulling the stream via RTSP from MediaMTX
 5. FFmpeg pushes to all enabled platforms simultaneously
 
 ---

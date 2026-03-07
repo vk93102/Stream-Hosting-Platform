@@ -1,11 +1,16 @@
 'use strict';
 
 const { spawn } = require('child_process');
+const dotenv = require('dotenv');
 const net = require('net');
 const path = require('path');
 
 const backendDir = path.join(__dirname, '..');
 const mediamtxConfig = path.join(backendDir, '..', 'configs', 'mediamtx.local-rtmp.yml');
+const envPath = path.join(backendDir, '.env');
+
+const parsedEnv = dotenv.config({ path: envPath }).parsed || {};
+const childEnv = { ...process.env, ...parsedEnv };
 
 function isPortOpen(port, host = '127.0.0.1') {
   return new Promise((resolve) => {
@@ -56,7 +61,7 @@ function spawnChild(command, args, options) {
   const nodemonBin = path.join(backendDir, 'node_modules', '.bin', 'nodemon');
   // eslint-disable-next-line no-console
   console.log('[dev] Starting SIL API with nodemon on :3000');
-  children.push(spawnChild(nodemonBin, ['server.js'], { cwd: backendDir }));
+  children.push(spawnChild(nodemonBin, ['server.js'], { cwd: backendDir, env: childEnv }));
 
   const shutdown = (signal) => {
     // eslint-disable-next-line no-console

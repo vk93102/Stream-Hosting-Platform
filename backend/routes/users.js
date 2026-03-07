@@ -19,6 +19,7 @@ const config = require('../config');
 const logger = require('../utils/logger');
 const { buildSRTIngestURL } = require('../services/srtRouter');
 const { requireAuth }       = require('../middleware/auth');
+const brbManager            = require('../services/brbManager');
 
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/users/register
@@ -184,6 +185,22 @@ router.post('/regenerate-key', requireAuth, async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ error: 'Key rotation failed' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/users/end-stream  (requires auth)
+// Intentionally end the stream immediately (do NOT run BRB)
+// ─────────────────────────────────────────────────────────────────────────────
+router.post('/end-stream', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await db.query('SELECT stream_key FROM users WHERE id=$1', [req.user.userId]);
+    if (!rows.length) return res.status(404).json({ error: 'User not found' });
+    await brbManager.forceEnd(rows[0].stream_key);
+    res.json({ success: true });
+  } catch (err) {
+    logger.error('[Users] end-stream error:', err);
+    res.status(500).json({ error: 'End stream failed' });
   }
 });
 

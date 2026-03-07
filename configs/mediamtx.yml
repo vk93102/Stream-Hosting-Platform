@@ -17,67 +17,47 @@ readBufferCount: 4096
 udpMaxPayloadSize: 1472
 
 # ── API (used by SIL control plane to list/kick streams) ──────────────────────
-api: yes
+api: true
 apiAddress: 127.0.0.1:9997
 
 # ── Metrics (Prometheus) ──────────────────────────────────────────────────────
-metrics: yes
+metrics: true
 metricsAddress: 127.0.0.1:9998
 
+# ── Auth (publish validation) ────────────────────────────────────────────────
+# MediaMTX will call this endpoint before accepting a publish.
+# SIL validates the stream key and starts the restream session.
+authMethod: http
+authHTTPAddress: http://127.0.0.1:3000/rtmp/auth
+
 # ── RTMP server (secondary – nginx-rtmp is primary) ───────────────────────────
-rtmp: yes
+rtmp: true
 rtmpAddress: :1936      # Use 1936 to avoid conflict with nginx-rtmp on 1935
-rtmpEncryption: no
+rtmpEncryption: "no"
 
 # ── SRT server  (PRIMARY IRL ingest) ─────────────────────────────────────────
-srt: yes
+srt: true
 srtAddress: :9999       # IRL encoders connect here
 
 # ── HLS (optional – browser preview) ─────────────────────────────────────────
-hls: yes
+hls: true
 hlsAddress: :8888
-hlsAlwaysRemux: no
+hlsAlwaysRemux: false
 hlsSegmentCount: 3
 hlsSegmentDuration: 2s
 hlsPartDuration: 200ms
 
 # ── WebRTC (optional) ─────────────────────────────────────────────────────────
-webrtc: no
+webrtc: false
+
+pathDefaults:
+  # Notify SIL when a stream disappears (used to trigger BRB / finalize sessions).
+  runOnNotReady: >
+    curl -s -X POST http://127.0.0.1:3000/rtmp/done
+    -H "Content-Type: application/x-www-form-urlencoded"
+    -d "name=$MTX_PATH"
 
 # ── Path configurations ───────────────────────────────────────────────────────
 paths:
-  # Catch-all: every stream path goes through SIL auth webhook
   all_others:
-    # ── SRT auth ──────────────────────────────────────────────────────────────
-    # MediaMTX calls this URL when a publisher connects.
-    # SIL validates the streamid, marks user live, starts FFmpeg restream.
-    #
-    # The stream key is passed in the SRT streamid param:
-    #   srt://SERVER:9999?streamid=stream:<STREAM_KEY>&passphrase=<PASS>
-    #
-    runOnPublish: >
-      curl -s -X POST http://127.0.0.1:3000/srt/auth
-      -H "Content-Type: application/json"
-      -d "{\"id\":\"%%{query}\",\"ip\":\"%%{sourceIp}\"}"
-    runOnPublishRestart: no
-
-    # Called when publisher disconnects
-    runOnUnpublish: >
-      curl -s -X POST http://127.0.0.1:3000/srt/done
-      -H "Content-Type: application/json"
-      -d "{\"id\":\"%%{query}\"}"
-
-    # ── Re-publish SRT → local RTMP (so FFmpeg can pull it) ──────────────────
-    # MediaMTX re-publishes the SRT stream as RTMP locally.
-    # FFmpeg in SIL's RestreamManager pulls from this RTMP URL.
-    runOnReady: >
-      ffmpeg -i srt://127.0.0.1:9999?streamid=%%{query}&mode=listener
-             -c copy -f flv rtmp://127.0.0.1/live/%%{query}
-    runOnReadyRestart: yes
-
-    # Source / publisher settings
-    sourceOnDemand: no
-    publishUser: ""
-    publishPass: ""
-    readUser: ""
-    readPass: ""
+    sourceOnDemand: false

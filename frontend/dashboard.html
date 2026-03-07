@@ -396,6 +396,15 @@
           </div>
 
           <button class="btn btn-primary" onclick="saveBRBSettings()"><i class="fa-solid fa-floppy-disk"></i> Save BRB Settings</button>
+
+          <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
+            <button class="btn btn-danger btn-sm" onclick="endStreamNow()">
+              <i class="fa-solid fa-octagon-xmark"></i> End Stream Now (No BRB)
+            </button>
+            <div style="color:var(--muted);font-size:.78rem;margin-top:6px;">
+              Use this when you intentionally stop OBS and want the stream to fully end on platforms.
+            </div>
+          </div>
         </div>
 
         <!-- BRB Media Upload -->

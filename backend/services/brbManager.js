@@ -258,6 +258,22 @@ class BRBManager {
     }
   }
 
+  /**
+   * Force-end a stream immediately.
+   * This is useful when a streamer intentionally stops streaming and does NOT
+   * want BRB to keep platforms alive.
+   *
+   * @param {string} streamKey
+   */
+  async forceEnd(streamKey) {
+    const session = this.sessions.get(streamKey);
+    if (session && session.state !== 'ended') {
+      await session._finalizeEnd();
+      return;
+    }
+    await this._immediateEnd(streamKey);
+  }
+
   // Immediate end without BRB
   async _immediateEnd(streamKey) {
     const restreamer = require('./restreamer');

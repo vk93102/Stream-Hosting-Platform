@@ -1,5 +1,5 @@
 # MediaMTX config for LOCAL (no-Docker) RTMP ingest.
-# Runs RTMP on :1935 so OBS can connect to rtmp://localhost/live.
+# Runs RTMP on :1935 so OBS can connect to rtmp://localhost:1935/live.
 # Uses MediaMTX HTTP auth to call SIL backend /rtmp/auth.
 
 logLevel: info
@@ -19,8 +19,9 @@ rtmp: true
 rtmpAddress: :1935
 rtmpEncryption: "no"
 
-# SRT disabled in this local RTMP-only profile
-srt: false
+# SRT ingest for field encoders (LiveU / TVU / Larix)
+srt: true
+srtAddress: :9999
 
 # Optional browser preview
 hls: true

@@ -56,10 +56,12 @@ class RestreamSession extends EventEmitter {
 
     // Input source: pull from local ingest server
     let inputUrl;
+    let inputArgs = [];
     if (ingestType === 'srt') {
-      // MediaMTX can convert protocols automatically; in our stack it exposes an
-      // internal RTMP listener on port 1936. Pull from there for SRT ingests.
-      inputUrl = `rtmp://${config.srt.server}:1936/${this.streamKey}`;
+      // For SRT publishers (LiveU / TVU / Larix), pull the decoded stream from MediaMTX via RTSP.
+      // This avoids assumptions about RTMP port/path mapping and works in both dev and production.
+      inputUrl = `rtsp://${config.srt.server}:${config.srt.rtspPort}/${this.streamKey}`;
+      inputArgs = ['-rtsp_transport', 'tcp'];
     } else {
       inputUrl = `${config.rtmp.localServer}/${this.streamKey}`;
     }
@@ -67,6 +69,7 @@ class RestreamSession extends EventEmitter {
     const base = [
       '-hide_banner', '-loglevel', 'warning',
       '-re',
+      ...inputArgs,
       '-i', inputUrl,
       '-c', 'copy',
     ];

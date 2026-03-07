@@ -21,7 +21,7 @@ const normalizeStreamKey = (raw) => {
   const noQuery = s.split('?')[0];
   const parts = noQuery.split('/').filter(Boolean);
   const last = (parts.length ? parts[parts.length - 1] : noQuery).trim();
-  return last.replace(/^stream:/, '').trim();
+  return last.replace(/^(stream|publish|read):/i, '').trim();
 };
 
 // Fields fetched for BRB – destination URLs must be included
@@ -38,9 +38,16 @@ router.post('/rtmp/auth', async (req, res) => {
     return res.sendStatus(200);
   }
 
-  const streamKey = normalizeStreamKey(
+  const protocol = String(req.body?.protocol || '').toLowerCase();
+  const ingestType = protocol === 'srt' ? 'srt' : 'rtmp';
+
+  let streamKey = normalizeStreamKey(
     req.body?.name || req.body?.key || req.body?.path || req.body?.id
   );
+  if (!streamKey && req.body?.query) {
+    // SRT publishers typically provide streamid in the query string.
+    streamKey = normalizeStreamKey(parseStreamKey(String(req.body.query)));
+  }
   const clientIp  = req.body?.addr || req.body?.ip || req.ip;
 
   if (!streamKey) return res.sendStatus(400);
@@ -68,19 +75,19 @@ router.post('/rtmp/auth', async (req, res) => {
       ),
       db.query(
         `INSERT INTO stream_sessions (user_id, stream_key, ingest_type, client_ip)
-         SELECT id, stream_key, 'rtmp', $2 FROM users WHERE stream_key=$1`,
-        [streamKey, clientIp]
+         SELECT id, stream_key, $3, $2 FROM users WHERE stream_key=$1`,
+        [streamKey, clientIp, ingestType]
       ),
     ]);
 
-    logger.info(`[RTMP] ${user.username} LIVE  ip=${clientIp}`);
-    broadcast('stream_start', { username: user.username, ingestType: 'rtmp' });
+    logger.info(`[${ingestType.toUpperCase()}] ${user.username} LIVE  ip=${clientIp}`);
+    broadcast('stream_start', { username: user.username, ingestType });
 
     res.sendStatus(200);   // MUST respond before spawning FFmpeg
 
-    setTimeout(() => restreamer.start(streamKey, user, 'rtmp'), 1_500);
+    setTimeout(() => restreamer.start(streamKey, user, ingestType), ingestType === 'srt' ? 2_000 : 1_500);
   } catch (err) {
-    logger.error('[RTMP] Auth error:', err);
+    logger.error(`[${ingestType.toUpperCase()}] Auth error:`, err);
     res.sendStatus(500);
   }
 });

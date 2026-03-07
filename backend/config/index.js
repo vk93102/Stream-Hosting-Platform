@@ -56,7 +56,19 @@ module.exports = {
     const raw = (process.env.SERVER_PUBLIC_IP || '').trim();
     if (!raw) return 'localhost';
     if (raw === 'YOUR_SERVER_IP_OR_HOSTNAME' || raw === 'YOUR_SERVER_IP') return 'localhost';
-    return raw;
+    // Allow common copy/pastes like: http://1.2.3.4:3000 or https://domain.com/
+    // but ingest URLs need only a hostname (no scheme, no path).
+    try {
+      if (/^https?:\/\//i.test(raw)) {
+        return new URL(raw).hostname || 'localhost';
+      }
+    } catch { /* ignore */ }
+
+    // Strip any accidental path.
+    const noPath = raw.split('/')[0].trim();
+    // Strip a port if present.
+    const hostOnly = noPath.includes(':') ? noPath.split(':')[0] : noPath;
+    return hostOnly || 'localhost';
   })(),
 
   // ── Database (Supabase / PostgreSQL) ───────────────────────────────────────
@@ -107,6 +119,7 @@ module.exports = {
   srt: {
     server:      process.env.SRT_SERVER    || '127.0.0.1',
     port:        int('SRT_PORT', 9999),
+    rtspPort:    int('MEDIAMTX_RTSP_PORT', 8554),
     mediamtxApi: process.env.MEDIAMTX_API || 'http://127.0.0.1:9997',
   },
 

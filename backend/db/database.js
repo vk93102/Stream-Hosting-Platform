@@ -27,9 +27,61 @@ const config   = require('../config');
 // ─────────────────────────────────────────────────────────────────────────────
 const SLOW_QUERY_MS = 2_000;   // warn if any query takes longer than this
 
+function parseBooleanish(value) {
+  if (value === undefined || value === null) return undefined;
+  const v = String(value).trim().toLowerCase();
+  if (['1', 'true', 't', 'yes', 'y', 'on'].includes(v)) return true;
+  if (['0', 'false', 'f', 'no', 'n', 'off', 'disable', 'disabled'].includes(v)) return false;
+  return undefined;
+}
+
+function getDatabaseHost(connectionString) {
+  try {
+    const url = new URL(connectionString);
+    return url.hostname;
+  } catch {
+    return undefined;
+  }
+}
+
+function getSslModeFromConnectionString(connectionString) {
+  try {
+    const url = new URL(connectionString);
+    return url.searchParams.get('sslmode') || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function resolveSslConfig() {
+  const connectionString = config.database.url;
+  const sslmode = getSslModeFromConnectionString(connectionString);
+  if (sslmode) {
+    if (sslmode === 'disable') return false;
+    const rejectUnauthorized = ['verify-full', 'verify-ca'].includes(sslmode);
+    return { rejectUnauthorized };
+  }
+
+  const forced = parseBooleanish(process.env.DB_SSL);
+  if (forced !== undefined) {
+    if (!forced) return false;
+    const rejectUnauthorized = parseBooleanish(process.env.DB_SSL_REJECT_UNAUTHORIZED) ?? false;
+    return { rejectUnauthorized };
+  }
+
+  // Auto mode (default): disable SSL for local databases and for known
+  // non-TLS poolers; enable elsewhere.
+  const host = getDatabaseHost(connectionString);
+  if (!host) return false;
+  if (host === 'localhost' || host === '127.0.0.1') return false;
+  if (host.endsWith('.pooler.supabase.com')) return false;
+
+  return { rejectUnauthorized: false };
+}
+
 const pool = new Pool({
   connectionString:        config.database.url,
-  ssl:                     { rejectUnauthorized: false },   // required by Supabase pooler
+  ssl:                     resolveSslConfig(),
   max:                     config.database.poolMax,
   idleTimeoutMillis:       config.database.idleTimeoutMs,
   connectionTimeoutMillis: config.database.connectTimeoutMs,

@@ -250,7 +250,7 @@ async function loadIngestInfo() {
     if (!u) return; // api() returned undefined → 401 redirect already triggered
     const host = location.hostname;
     const rtmpServer = `rtmp://${host}:1935/live`;
-    const srtFull    = `srt://${host}:9999?streamid=stream:${u.stream_key}&latency=2000&mode=caller`
+    const srtFull    = `srt://${host}:9999?streamid=publish:${u.stream_key}&latency=2000&mode=caller`
                      + (u.srt_passphrase ? `&passphrase=${u.srt_passphrase}&pbkeylen=16` : '');
     document.getElementById('rtmpUrl').textContent  = rtmpServer;
     document.getElementById('rtmpKey').textContent  = u.stream_key;
@@ -391,6 +391,17 @@ async function deleteBRBMedia() {
     loadBRBInfo();
   } catch (err) {
     toast('Delete failed: ' + err.message, 'error');
+  }
+}
+
+async function endStreamNow() {
+  if (!confirm('End stream immediately? This will stop restreaming and disable BRB for this stop event.')) return;
+  try {
+    await api('POST', '/api/users/end-stream', {});
+    toast('Stream ended', 'success');
+    loadProfile();
+  } catch (err) {
+    toast('End failed: ' + err.message, 'error');
   }
 }
 
