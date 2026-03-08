@@ -12,10 +12,16 @@
  *   [nginx-rtmp / MediaMTX]
  *         │  pull (re-read local feed)
  *         ▼
- *   [FFmpeg tee muxer]
+ *   [One FFmpeg per destination – fully isolated]
  *     ├─► YouTube  rtmp://a.rtmp.youtube.com/live2/<key>
- *     ├─► Kick     rtmps://.../<key>
+ *     ├─► Kick     rtmps://fa723fc1b171.global-contribute.live-video.net:443/app/<key>
  *     └─► Twitch   rtmp://live.twitch.tv/app/<key>
+ *
+ * Key design decisions:
+ *  - One FFmpeg process per destination so a single platform failure never
+ *    affects the others (replaces the fragile tee-muxer approach).
+ *  - Unlimited retries while the parent session is active; delay caps at 30 s.
+ *  - All FFmpeg stderr is logged at WARN so errors are always visible.
  */
 
 const { spawn } = require('child_process');
@@ -23,6 +29,94 @@ const EventEmitter = require('events');
 const logger = require('../utils/logger');
 const config = require('../config');
 
+// ─────────────────────────────────────────────────────────────────────────────
+// DestinationPusher – one FFmpeg process → one platform
+// ─────────────────────────────────────────────────────────────────────────────
+class DestinationPusher extends EventEmitter {
+  /**
+   * @param {string} streamKey
+   * @param {string} label      e.g. 'Kick', 'Twitch', 'YouTube'
+   * @param {string} url        full RTMP(S) ingest URL including stream key
+   * @param {string} ingestType 'rtmp' | 'srt'
+   */
+  constructor(streamKey, label, url, ingestType) {
+    super();
+    this.streamKey  = streamKey;
+    this.label      = label;
+    this.url        = url;
+    this.ingestType = ingestType;
+    this.process    = null;
+    this.retries    = 0;
+    this.isActive   = true;
+    this._retryTimer = null;
+  }
+
+  _buildArgs() {
+    let inputUrl, inputArgs = [];
+    if (this.ingestType === 'srt') {
+      inputUrl  = `rtsp://${config.srt.server}:${config.srt.rtspPort}/${this.streamKey}`;
+      inputArgs = ['-rtsp_transport', 'tcp'];
+    } else {
+      inputUrl = `${config.rtmp.localServer}/${this.streamKey}`;
+    }
+
+    return [
+      '-hide_banner', '-loglevel', 'error',
+      ...inputArgs,
+      '-i', inputUrl,
+      '-c', 'copy',
+      '-f', 'flv', this.url,
+    ];
+  }
+
+  start() {
+    if (!this.isActive) return;
+
+    this.retries++;
+    logger.info(`[Restream:${this.streamKey}] [${this.label}] Starting (attempt ${this.retries})`);
+
+    this.process = spawn('ffmpeg', this._buildArgs());
+
+    this.process.stderr.on('data', (chunk) => {
+      const msg = chunk.toString().trim();
+      if (msg) logger.warn(`[ffmpeg:${this.label}] ${msg}`);
+    });
+
+    this.process.on('exit', (code, signal) => {
+      logger.info(`[Restream:${this.streamKey}] [${this.label}] FFmpeg exited code=${code} signal=${signal}`);
+
+      if (!this.isActive || signal != null) {
+        // Intentionally stopped – do not reconnect
+        this.emit('stopped', { label: this.label, code });
+        return;
+      }
+
+      // Retry indefinitely while the stream is active; cap delay at 30 s
+      const delay = Math.min(2000 * Math.min(this.retries, 10), 30_000);
+      logger.info(`[Restream:${this.streamKey}] [${this.label}] Reconnect in ${delay}ms (retry ${this.retries})`);
+      this._retryTimer = setTimeout(() => this.start(), delay);
+    });
+
+    this.process.on('error', (err) => {
+      logger.error(`[Restream:${this.streamKey}] [${this.label}] Spawn error: ${err.message}`);
+    });
+  }
+
+  stop() {
+    this.isActive = false;
+    if (this._retryTimer) { clearTimeout(this._retryTimer); this._retryTimer = null; }
+    if (this.process && !this.process.killed) {
+      this.process.kill('SIGTERM');
+      setTimeout(() => {
+        if (this.process && !this.process.killed) this.process.kill('SIGKILL');
+      }, 5_000);
+    }
+    this.emit('stopped', { label: this.label, code: null });
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RestreamSession – one per active stream key, owns N DestinationPushers
 // ─────────────────────────────────────────────────────────────────────────────
 class RestreamSession extends EventEmitter {
   /**
@@ -33,118 +127,61 @@ class RestreamSession extends EventEmitter {
     super();
     this.streamKey  = streamKey;
     this.user       = user;
-    this.process    = null;
-    this.retries    = 0;
-    this.maxRetries = 5;
+    this.pushers    = new Map();   // label → DestinationPusher
     this.isActive   = true;
     this.startTime  = Date.now();
+    this.ingestType = 'rtmp';
   }
 
-  // ── Build destinations ─────────────────────────────────────────────────────
-  _destinations() {
+  _getDestinations() {
     const dests = [];
-    if (this.user.stream_to_youtube && this.user.youtube_url) dests.push({ label: 'YouTube', url: this.user.youtube_url });
-    if (this.user.stream_to_kick    && this.user.kick_url)    dests.push({ label: 'Kick',    url: this.user.kick_url    });
-    if (this.user.stream_to_twitch  && this.user.twitch_url)  dests.push({ label: 'Twitch',  url: this.user.twitch_url  });
+    if (this.user.stream_to_youtube && this.user.youtube_url)
+      dests.push({ label: 'YouTube', url: this.user.youtube_url });
+    if (this.user.stream_to_kick    && this.user.kick_url)
+      dests.push({ label: 'Kick',    url: this.user.kick_url    });
+    if (this.user.stream_to_twitch  && this.user.twitch_url)
+      dests.push({ label: 'Twitch',  url: this.user.twitch_url  });
     return dests;
   }
 
-  // ── Build ffmpeg args ──────────────────────────────────────────────────────
-  _buildArgs(ingestType) {
-    const dests = this._destinations();
-    if (dests.length === 0) return null;
-
-    // Input source: pull from local ingest server
-    let inputUrl;
-    let inputArgs = [];
-    if (ingestType === 'srt') {
-      // For SRT publishers (LiveU / TVU / Larix), pull the decoded stream from MediaMTX via RTSP.
-      // This avoids assumptions about RTMP port/path mapping and works in both dev and production.
-      inputUrl = `rtsp://${config.srt.server}:${config.srt.rtspPort}/${this.streamKey}`;
-      inputArgs = ['-rtsp_transport', 'tcp'];
-    } else {
-      inputUrl = `${config.rtmp.localServer}/${this.streamKey}`;
-    }
-
-    const base = [
-      '-hide_banner', '-loglevel', 'error',
-      ...inputArgs,
-      '-i', inputUrl,
-      '-c', 'copy',
-    ];
-
-    if (dests.length === 1) {
-      // Single destination – simple output
-      return [...base, '-f', 'flv', dests[0].url];
-    }
-
-    // Multiple destinations – use tee muxer (one encode, N pushes)
-    const teeTargets = dests.map(d => `[f=flv:onfail=ignore]${d.url}`).join('|');
-    return [...base, '-f', 'tee', teeTargets];
-  }
-
-  // ── Start (with auto-reconnect) ────────────────────────────────────────────
   start(ingestType = 'rtmp') {
-    const args = this._buildArgs(ingestType);
-    if (!args) {
-      logger.warn(`[Restream:${this.streamKey}] No active destinations – skipping FFmpeg`);
+    this.ingestType = ingestType;
+    const dests = this._getDestinations();
+    if (dests.length === 0) {
+      logger.warn(`[Restream:${this.streamKey}] No active destinations – skipping`);
       return false;
     }
 
-    const dests = this._destinations().map(d => d.label).join(', ');
-    logger.info(`[Restream:${this.streamKey}] Starting → ${dests} (retry ${this.retries})`);
+    const labels = dests.map(d => d.label).join(', ');
+    logger.info(`[Restream:${this.streamKey}] Session starting → ${labels}`);
 
-    this.process = spawn('ffmpeg', args);
-
-    this.process.stderr.on('data', (chunk) => {
-      const msg = chunk.toString().trim();
-      if (msg) logger.warn(`[ffmpeg:${this.streamKey}] ${msg}`);
-    });
-
-    this.process.on('exit', (code, signal) => {
-      logger.info(`[Restream:${this.streamKey}] FFmpeg exited  code=${code} signal=${signal}`);
-
-      // Reconnect on any non-intentional exit (code !== 0  OR  code === 0 with no signal,
-      // which can happen when the output side closes the connection cleanly, e.g. Kick
-      // drops the stream but FFmpeg sees it as EOF and exits 0).
-      const unintentional = this.isActive && signal == null && this.retries < this.maxRetries;
-      if (unintentional) {
-        this.retries++;
-        const delay = Math.min(2000 * this.retries, 30_000);
-        logger.info(`[Restream:${this.streamKey}] Reconnect in ${delay}ms (${this.retries}/${this.maxRetries})`);
-        setTimeout(() => this.start(ingestType), delay);
-      } else {
-        this.emit('ended', { streamKey: this.streamKey, code });
-      }
-    });
-
-    this.process.on('error', (err) => {
-      logger.error(`[Restream:${this.streamKey}] Spawn error: ${err.message}`);
-      this.emit('error', err);
-    });
+    for (const { label, url } of dests) {
+      const pusher = new DestinationPusher(this.streamKey, label, url, ingestType);
+      this.pushers.set(label, pusher);
+      pusher.start();
+    }
 
     return true;
   }
 
   stop() {
     this.isActive = false;
-    if (this.process && !this.process.killed) {
-      this.process.kill('SIGTERM');
-      setTimeout(() => {
-        if (this.process && !this.process.killed) this.process.kill('SIGKILL');
-      }, 5_000);
-    }
+    for (const pusher of this.pushers.values()) pusher.stop();
+    this.pushers.clear();
   }
 
   stats() {
-    const dests = this._destinations().map(d => d.label).join(', ');
+    const destStats = [...this.pushers.values()].map(p => ({
+      label:   p.label,
+      retries: p.retries,
+      pid:     p.process?.pid ?? null,
+      active:  p.isActive,
+    }));
     return {
       streamKey:    this.streamKey,
       username:     this.user.username,
       uptime:       Math.floor((Date.now() - this.startTime) / 1000),
-      destinations: dests || 'none',
-      retries:      this.retries,
-      pid:          this.process?.pid ?? null,
+      destinations: destStats,
     };
   }
 }
@@ -169,7 +206,6 @@ class RestreamManager {
     }
 
     const session = new RestreamSession(streamKey, user);
-    session.on('ended', () => this.sessions.delete(streamKey));
     session.start(ingestType);
     this.sessions.set(streamKey, session);
     return session;

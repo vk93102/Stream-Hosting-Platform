@@ -48,6 +48,7 @@ const mediaRoutes  = require('./routes/media');
 
 // Services
 const streamHealth = require('./services/streamHealth');
+const restreamer   = require('./services/restreamer');
 
 // ─────────────────────────────────────────────────────────────────────────────
 const app    = express();
@@ -123,6 +124,7 @@ streamHealth.start();
 
   try {
     await db.connect();
+    startRestreamHeal();
   } catch (err) {
     if (config.nodeEnv === 'production') {
       logger.error('[DB] Cannot connect in production – shutting down');
@@ -132,6 +134,75 @@ streamHealth.start();
     logger.warn('[DB] Check DATABASE_URL in backend/.env then restart');
   }
 })();
+
+// ── Auto-heal: restart restream for any is_live user with no active session ──
+function startRestreamHeal() {
+  const HEAL_INTERVAL_MS = 15_000; // check every 15 s
+
+  const FIELDS = `username, stream_key, youtube_url, twitch_url, kick_url,
+    stream_to_youtube, stream_to_twitch, stream_to_kick,
+    brb_enabled, brb_timeout_seconds, brb_media_path`;
+
+  /**
+   * Ask MediaMTX if a given path (stream key) is currently being published.
+   * Returns true only if MediaMTX responds and the path has an active source.
+   */
+  async function isPathLiveInMediaMTX(streamKey) {
+    try {
+      const http = require('http');
+      const url  = `${config.srt.mediamtxApi}/v3/paths/get/live/${streamKey}`;
+      return await new Promise((resolve) => {
+        const req = http.get(url, { timeout: 2000 }, (res) => {
+          let body = '';
+          res.on('data', d => { body += d; });
+          res.on('end', () => {
+            try {
+              const j = JSON.parse(body);
+              // MediaMTX marks a path ready when source is not null
+              resolve(res.statusCode === 200 && j.source != null);
+            } catch { resolve(false); }
+          });
+        });
+        req.on('error', () => resolve(false));
+        req.on('timeout', () => { req.destroy(); resolve(false); });
+      });
+    } catch { return false; }
+  }
+
+  setInterval(async () => {
+    try {
+      const { rows } = await db.query(
+        `SELECT ${FIELDS} FROM users WHERE is_live=true`
+      );
+      for (const user of rows) {
+        const liveInMTX = await isPathLiveInMediaMTX(user.stream_key);
+
+        if (!liveInMTX) {
+          // MediaMTX has no active publisher → stale is_live flag, clear it
+          if (restreamer.getSession(user.stream_key)) {
+            restreamer.stop(user.stream_key);
+          }
+          await db.query(
+            `UPDATE users SET is_live=false WHERE stream_key=$1`,
+            [user.stream_key]
+          );
+          logger.warn(`[Heal] ${user.username} marked is_live but no MediaMTX source – cleared`);
+          continue;
+        }
+
+        // Stream really is live but no restream session → restart it
+        if (!restreamer.getSession(user.stream_key)) {
+          logger.warn(`[Heal] ${user.username} is_live + MediaMTX OK but no restream – restarting`);
+          restreamer.start(user.stream_key, user, 'rtmp');
+        }
+      }
+    } catch (err) {
+      logger.error('[Heal] Error during restream heal check:', err.message);
+    }
+  }, HEAL_INTERVAL_MS);
+
+  logger.info('[Heal] Restream auto-heal started (interval 15s)');
+}
 
 process.on('SIGTERM', () => {
   logger.info('SIGTERM – shutting down gracefully');

@@ -114,6 +114,27 @@ router.post('/streams/:key/kill', async (req, res) => {
   }
 });
 
+// ── Restart restream for a live stream (without killing the ingest) ───────────
+router.post('/streams/:key/restart-restream', async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT username, stream_key, youtube_url, twitch_url, kick_url,
+              stream_to_youtube, stream_to_twitch, stream_to_kick,
+              brb_enabled, brb_timeout_seconds, brb_media_path
+         FROM users WHERE stream_key=$1 AND is_live=true`,
+      [req.params.key]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'No live stream found for that key' });
+    restreamer.stop(req.params.key);  // stop existing session if any
+    restreamer.start(req.params.key, rows[0], req.body.ingestType || 'rtmp');
+    logger.info(`[Admin] Restream restarted for ${rows[0].username}`);
+    res.json({ success: true, username: rows[0].username });
+  } catch (err) {
+    logger.error('[Admin] Restart restream error:', err);
+    res.status(500).json({ error: 'Restart failed' });
+  }
+});
+
 // ── Relay nodes ───────────────────────────────────────────────────────────────
 router.get('/relays', async (req, res) => {
   const { rows } = await db.query('SELECT * FROM relay_nodes ORDER BY region');
