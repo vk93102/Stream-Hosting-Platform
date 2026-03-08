@@ -67,8 +67,7 @@ class RestreamSession extends EventEmitter {
     }
 
     const base = [
-      '-hide_banner', '-loglevel', 'warning',
-      '-re',
+      '-hide_banner', '-loglevel', 'error',
       ...inputArgs,
       '-i', inputUrl,
       '-c', 'copy',
@@ -99,13 +98,17 @@ class RestreamSession extends EventEmitter {
 
     this.process.stderr.on('data', (chunk) => {
       const msg = chunk.toString().trim();
-      if (msg) logger.debug(`[ffmpeg:${this.streamKey}] ${msg}`);
+      if (msg) logger.warn(`[ffmpeg:${this.streamKey}] ${msg}`);
     });
 
     this.process.on('exit', (code, signal) => {
       logger.info(`[Restream:${this.streamKey}] FFmpeg exited  code=${code} signal=${signal}`);
 
-      if (this.isActive && code !== 0 && this.retries < this.maxRetries) {
+      // Reconnect on any non-intentional exit (code !== 0  OR  code === 0 with no signal,
+      // which can happen when the output side closes the connection cleanly, e.g. Kick
+      // drops the stream but FFmpeg sees it as EOF and exits 0).
+      const unintentional = this.isActive && signal == null && this.retries < this.maxRetries;
+      if (unintentional) {
         this.retries++;
         const delay = Math.min(2000 * this.retries, 30_000);
         logger.info(`[Restream:${this.streamKey}] Reconnect in ${delay}ms (${this.retries}/${this.maxRetries})`);

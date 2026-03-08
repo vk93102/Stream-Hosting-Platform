@@ -141,6 +141,56 @@ router.get('/:username', async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Normalise a Kick stream URL/key into the canonical RTMPS ingest URL.
+ *
+ * Kick's ingest endpoint is:
+ *   rtmps://fa723fc1b171.global-contribute.live-video.net:443/app/<stream_key>
+ *
+ * Users commonly paste just the stream key, or a URL that is missing
+ * the :443 port and/or the /app/ application path.  This function
+ * handles all common variants and returns the correct full URL.
+ *
+ * @param {string|null|undefined} raw
+ * @returns {string|null}
+ */
+function normaliseKickUrl(raw) {
+  if (!raw) return null;
+  const KICK_HOST = 'fa723fc1b171.global-contribute.live-video.net';
+  const KICK_BASE = `rtmps://${KICK_HOST}:443/app/`;
+
+  const val = raw.trim();
+
+  // Already a full, correct URL  →  return as-is
+  if (val.startsWith(KICK_BASE)) return val;
+
+  // Full RTMPS URL but missing :443 and/or /app/
+  // e.g. rtmps://fa723fc1b171.global-contribute.live-video.net/sk_...
+  //      rtmps://fa723fc1b171.global-contribute.live-video.net:443/sk_...
+  if (/^rtmps?:\/\//i.test(val)) {
+    try {
+      const u = new URL(val.replace(/^rtmps/i, 'https').replace(/^rtmp/i, 'http'));
+      // Extract everything after the hostname (strip leading slash)
+      let path = u.pathname.replace(/^\//, '');
+      // If path starts with 'app/', keep it; otherwise add it
+      if (path.startsWith('app/')) path = path.slice(4);
+      // path is now just the stream key (possibly with extra segments)
+      const key = path.split('/')[0];
+      if (!key) return val; // can't parse — return unchanged
+      return KICK_BASE + key;
+    } catch {
+      return val;
+    }
+  }
+
+  // Plain stream key with no URL scheme (e.g. sk_us-west-2_xxxx or live_xxxx)
+  return KICK_BASE + val;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // PUT /api/users/destinations  (requires auth)
 // ─────────────────────────────────────────────────────────────────────────────
 router.put('/destinations', requireAuth, async (req, res) => {
@@ -156,7 +206,7 @@ router.put('/destinations', requireAuth, async (req, res) => {
       [
         yt_url || null,
         tw_url || null,
-        kk_url || null,
+        normaliseKickUrl(kk_url),
         yt_on === true || yt_on === 'true',
         tw_on === true || tw_on === 'true',
         kk_on === true || kk_on === 'true',
